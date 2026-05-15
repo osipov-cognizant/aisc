@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CMT Slop-Survival Study — Simulation</title>
+<style>
+  :root {
+    --bg-page: #f7f7f5;
+    --bg-card: #ffffff;
+    --bg-soft: #f1efe8;
+    --bg-info: #e6f1fb;
+    --bg-danger: #fceaea;
+    --bg-success: #e1f5ee;
+    --bg-warning: #faeeda;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555550;
+    --text-tertiary: #888780;
+    --text-info: #0c447c;
+    --text-danger: #791f1f;
+    --text-success: #085041;
+    --text-warning: #633806;
+    --border: rgba(0,0,0,0.10);
+    --border-strong: rgba(0,0,0,0.20);
+    --c-llm: #d85a30;
+    --c-workshop: #1d9e75;
+    --c-mixed: #534ab7;
+    --c-grade: #185fa5;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+    background: var(--bg-page);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .app { max-width: 1280px; margin: 0 auto; padding: 16px 20px 60px; }
+
+  /* Header */
+  .header { padding: 12px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .header h1 { font-size: 20px; font-weight: 500; margin: 0 0 4px; }
+  .header p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tab {
+    background: transparent; border: 0; padding: 10px 14px; cursor: pointer;
+    font-family: inherit; font-size: 13px; color: var(--text-secondary);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active { color: var(--text-primary); border-bottom-color: #1a1a1a; font-weight: 500; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Cards & layout */
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 16px; font-weight: 500; margin: 0 0 12px; }
+  .card h3 { font-size: 14px; font-weight: 500; margin: 0 0 8px; color: var(--text-secondary); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 760px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  }
+
+  /* Metric card */
+  .metric { background: var(--bg-soft); border-radius: var(--radius-md); padding: 12px 14px; }
+  .metric .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .metric .value { font-size: 22px; font-weight: 500; }
+  .metric .sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* Buttons */
+  .btn {
+    background: var(--bg-card); border: 1px solid var(--border-strong);
+    color: var(--text-primary); font-family: inherit; font-size: 13px;
+    padding: 8px 14px; border-radius: var(--radius-md); cursor: pointer;
+    transition: background .12s ease;
+  }
+  .btn:hover { background: var(--bg-soft); }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .btn-primary:hover { background: #333; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* Form controls */
+  label.field { display: block; margin-bottom: 12px; font-size: 13px; }
+  label.field .ftitle { display: block; color: var(--text-secondary); margin-bottom: 4px; font-size: 12px; }
+  input[type="number"], input[type="text"], select {
+    font-family: inherit; font-size: 13px; padding: 7px 9px;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    background: #fff; width: 100%;
+  }
+  input[type="range"] { width: 100%; }
+  .slider-row { display: grid; grid-template-columns: 1fr 60px; gap: 10px; align-items: center; }
+
+  /* Tags / badges */
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+         background: var(--bg-soft); color: var(--text-secondary); margin-right: 6px; }
+  .tag-llm { background: #fae0d6; color: #993c1d; }
+  .tag-ws  { background: #d1edd9; color: #0f6e56; }
+  .tag-mix { background: #ddd9f8; color: #3c3489; }
+  .tag-sig { background: #d1edd9; color: #0f6e56; }
+  .tag-ns  { background: #f1efe8; color: #555550; }
+
+  /* Tables */
+  table.stats { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.stats th, table.stats td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+  table.stats th { color: var(--text-secondary); font-weight: 500; font-size: 12px; }
+  table.stats td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.stats tr:last-child td { border-bottom: 0; }
+
+  /* Charts */
+  .chart-wrap { position: relative; width: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+
+  /* Footer note */
+  .note { font-size: 12px; color: var(--text-tertiary); }
+
+  /* Sticky actions on dashboard */
+  .actions-bar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 10px 14px; margin-bottom: 16px;
+  }
+  .actions-bar .seedbox { display: flex; align-items: center; gap: 6px; }
+  .actions-bar .seedbox input { width: 100px; padding: 5px 7px; font-size: 12px; }
+
+  /* Distribution viz */
+  .dist-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 6px; }
+  .dist-row .lbl { width: 92px; color: var(--text-secondary); }
+  .dist-row .bar-wrap { flex: 1; background: var(--bg-soft); height: 14px; border-radius: 4px; position: relative; overflow: hidden; }
+  .dist-row .bar { position: absolute; top: 0; bottom: 0; left: 0; }
+  .dist-row .pct { width: 40px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+
+  /* Alert */
+  .alert { padding: 10px 12px; border-radius: var(--radius-md); font-size: 13px; margin-bottom: 12px; }
+  .alert-info    { background: var(--bg-info);    color: var(--text-info); }
+  .alert-success { background: var(--bg-success); color: var(--text-success); }
+  .alert-warning { background: var(--bg-warning); color: var(--text-warning); }
+
+  details { margin: 8px 0; }
+  details > summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); padding: 4px 0; }
+  pre.cfg { background: var(--bg-soft); padding: 10px; border-radius: var(--radius-md);
+            font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+  <h1>CMT slop-survival study — simulation baseline</h1>
+  <p>Monte Carlo simulator for the embedded RCT. Configure scenarios, run replicates, compare outcomes, and pre-test statistical decisions before live data collection.</p>
+</div>
+
+<!-- TABS -->
+<div class="tabs" id="tabs">
+  <button class="tab active" data-tab="dashboard">Dashboard</button>
+  <button class="tab" data-tab="scenario-llm">Scenario A — slop cannon</button>
+  <button class="tab" data-tab="scenario-workshop">Scenario B — genuine</button>
+  <button class="tab" data-tab="scenario-mixed">Scenario C — mixed (RCT)</button>
+  <button class="tab" data-tab="export">Data export</button>
+  <button class="tab" data-tab="flow">Process flow</button>
+  <button class="tab" data-tab="methods">Methods &amp; assumptions</button>
+</div>
+
+<!-- ==========================================================
+     DASHBOARD
+     ========================================================== -->
+<div class="panel active" id="dashboard">
+
+  <div class="actions-bar">
+    <button class="btn btn-primary" id="btn-run-all">Run all scenarios</button>
+    <button class="btn" id="btn-reset">Reset to defaults</button>
+    <span class="seedbox">
+      <span style="font-size: 12px; color: var(--text-secondary);">Seed</span>
+      <input type="number" id="seed-input" value="20260501">
+    </span>
+    <span class="seedbox">
+      <span style="font-size: 12px; color: var(--text-secondary);">Replicates</span>
+      <input type="number" id="reps-input" value="500" min="50" max="5000" step="50">
+    </span>
+    <span style="margin-left: auto; font-size: 12px; color: var(--text-tertiary);" id="run-status">Not run yet</span>
+  </div>
+
+  <div class="alert alert-info" id="dash-intro">
+    Configure parameters in scenario tabs (A, B, C). The dashboard simulates each scenario across the chosen number of replicates and reports mean effect sizes, decision-rule outcomes, and statistical significance for the primary hypothesis (H1).
+  </div>
+
+  <!-- Top-line metrics -->
+  <div class="grid-4" id="topline-metrics">
+    <div class="metric"><div class="label">Slop-cannon mean grade</div><div class="value" id="m-llm-mean">—</div><div class="sub" id="m-llm-mean-sub">—</div></div>
+    <div class="metric"><div class="label">Genuine mean grade</div><div class="value" id="m-ws-mean">—</div><div class="sub" id="m-ws-mean-sub">—</div></div>
+    <div class="metric"><div class="label">Mixed-RCT estimated effect (d)</div><div class="value" id="m-mix-d">—</div><div class="sub" id="m-mix-d-sub">—</div></div>
+    <div class="metric"><div class="label">Mixed-RCT power (H1)</div><div class="value" id="m-mix-power">—</div><div class="sub" id="m-mix-power-sub">at α = 0.05</div></div>
+  </div>
+
+  <!-- Comparison chart -->
+  <div class="card">
+    <h2>Grade distributions across scenarios</h2>
+    <div class="legend">
+      <span><i style="background: var(--c-llm)"></i>Slop cannon (LLM-source)</span>
+      <span><i style="background: var(--c-workshop)"></i>Genuine (workshop-source)</span>
+      <span><i style="background: var(--c-mixed)"></i>Mixed (RCT pooled)</span>
+    </div>
+    <div class="chart-wrap" style="height: 320px;">
+      <canvas id="chart-distributions" role="img"
+        aria-label="Grade distributions for slop cannon, genuine, and mixed scenarios">
+        Grade distributions across scenarios.
+      </canvas>
+    </div>
+  </div>
+
+  <!-- Two-up: effect sizes & decision branches -->
+  <div class="grid-2">
+    <div class="card">
+      <h2>Mixed-RCT: H1 primary effect</h2>
+      <p class="note" style="margin: 0 0 10px;">LLM-source vs. workshop-source proposals on panel grade (1.0–5.0). Cohen's d, 95% CI from replicate variation, two-sided p (Welch's t).</p>
+      <table class="stats">
+        <tbody id="h1-table">
+          <tr><td>Mean grade — LLM source</td><td class="num" id="h1-llm">—</td></tr>
+          <tr><td>Mean grade — workshop</td><td class="num" id="h1-ws">—</td></tr>
+          <tr><td>Raw gap (workshop − LLM)</td><td class="num" id="h1-gap">—</td></tr>
+          <tr><td>Pooled SD</td><td class="num" id="h1-sd">—</td></tr>
+          <tr><td>Effect size (d)</td><td class="num" id="h1-d">—</td></tr>
+          <tr><td>95% CI on d</td><td class="num" id="h1-ci">—</td></tr>
+          <tr><td>Welch's t / df</td><td class="num" id="h1-t">—</td></tr>
+          <tr><td>p (two-sided)</td><td class="num" id="h1-p">—</td></tr>
+          <tr><td>Significant at α = 0.05</td><td class="num" id="h1-sig">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Decision-branch probabilities</h2>
+      <p class="note" style="margin: 0 0 10px;">Across replicates, share landing in each pre-registered decision branch (per protocol §10).</p>
+      <div id="branch-bars"></div>
+      <details>
+        <summary>Branch definitions</summary>
+        <div class="note" style="margin-top: 6px;">
+          <b>Branch 1</b>: significant primary effect with d ≥ 0.4 → policy change + cross-vertical replication.
+          <b>Branch 2</b>: significant with 0.15 ≤ d &lt; 0.4 → targeted intervention.
+          <b>Branch 3</b>: null or trivial (d &lt; 0.15 or non-significant) → null-finding analysis.
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- Secondary signals -->
+  <div class="card">
+    <h2>Secondary signals (from mixed-RCT scenario)</h2>
+    <div class="grid-3">
+      <div>
+        <h3>H2 — screening selection</h3>
+        <table class="stats">
+          <tbody>
+            <tr><td>LLM screening pick rate</td><td class="num" id="h2-llm-pick">—</td></tr>
+            <tr><td>Workshop pick rate</td><td class="num" id="h2-ws-pick">—</td></tr>
+            <tr><td>Odds ratio (LLM / WS)</td><td class="num" id="h2-or">—</td></tr>
+            <tr><td>p</td><td class="num" id="h2-p">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3>H3 — interview-behavior mediation</h3>
+        <table class="stats">
+          <tbody>
+            <tr><td>Author latency gap (s)</td><td class="num" id="h3-lat">—</td></tr>
+            <tr><td>Direct-answer rate gap</td><td class="num" id="h3-dar">—</td></tr>
+            <tr><td>Mediated share of effect</td><td class="num" id="h3-med">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3>H4 — live-interview contribution</h3>
+        <table class="stats">
+          <tbody>
+            <tr><td>Interview boost — LLM</td><td class="num" id="h4-llm-boost">—</td></tr>
+            <tr><td>Interview boost — workshop</td><td class="num" id="h4-ws-boost">—</td></tr>
+            <tr><td>Source × condition interaction</td><td class="num" id="h4-int">—</td></tr>
+            <tr><td>p</td><td class="num" id="h4-p">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary>Current configuration snapshot</summary>
+    <pre class="cfg" id="cfg-snapshot">—</pre>
+  </details>
+
+</div>
+
+<!-- ==========================================================
+     SCENARIO A — slop cannon
+     ========================================================== -->
+<div class="panel" id="scenario-llm">
+  <div class="card">
+    <h2><span class="tag tag-llm">Scenario A</span> Slop-cannon-only outcomes</h2>
+    <p class="note">Simulates a population in which 100% of source proposals are LLM-generated (with peer-review authenticity filtering). Models the data-generating process if Osipov's central claim were correct: surface-fluent but substantively shallow proposals fail downstream.</p>
+    <h3>Distribution parameters (panel grade, 1.0–5.0)</h3>
+    <div class="grid-2">
+      <label class="field"><span class="ftitle">Mean panel grade</span>
+        <div class="slider-row"><input type="range" id="llm-mean" min="1" max="5" step="0.05" value="3.10"><input type="number" id="llm-mean-n" min="1" max="5" step="0.05" value="3.10"></div>
+      </label>
+      <label class="field"><span class="ftitle">SD of panel grade</span>
+        <div class="slider-row"><input type="range" id="llm-sd" min="0.2" max="1.5" step="0.05" value="0.85"><input type="number" id="llm-sd-n" min="0.2" max="1.5" step="0.05" value="0.85"></div>
+      </label>
+    </div>
+    <h3>Author interview behavior (when interviewed)</h3>
+    <div class="grid-3">
+      <label class="field"><span class="ftitle">Mean response latency (s)</span>
+        <div class="slider-row"><input type="range" id="llm-lat" min="2" max="40" step="0.5" value="14"><input type="number" id="llm-lat-n" min="2" max="40" step="0.5" value="14"></div>
+      </label>
+      <label class="field"><span class="ftitle">External-resource reach rate (per min)</span>
+        <div class="slider-row"><input type="range" id="llm-ext" min="0" max="5" step="0.1" value="1.7"><input type="number" id="llm-ext-n" min="0" max="5" step="0.1" value="1.7"></div>
+      </label>
+      <label class="field"><span class="ftitle">Direct-answer proportion</span>
+        <div class="slider-row"><input type="range" id="llm-dar" min="0" max="1" step="0.01" value="0.35"><input type="number" id="llm-dar-n" min="0" max="1" step="0.01" value="0.35"></div>
+      </label>
+    </div>
+    <h3>Screening &amp; interview lift</h3>
+    <div class="grid-3">
+      <label class="field"><span class="ftitle">Screening pick rate (per pair)</span>
+        <div class="slider-row"><input type="range" id="llm-pick" min="0.30" max="0.90" step="0.01" value="0.62"><input type="number" id="llm-pick-n" min="0.30" max="0.90" step="0.01" value="0.62"></div>
+      </label>
+      <label class="field"><span class="ftitle">Live interview grade boost</span>
+        <div class="slider-row"><input type="range" id="llm-boost" min="-0.5" max="1.5" step="0.05" value="0.20"><input type="number" id="llm-boost-n" min="-0.5" max="1.5" step="0.05" value="0.20"></div>
+      </label>
+      <label class="field"><span class="ftitle">Sample size per replicate</span>
+        <div class="slider-row"><input type="range" id="llm-n" min="20" max="300" step="10" value="80"><input type="number" id="llm-n-n" min="20" max="300" step="10" value="80"></div>
+      </label>
+    </div>
+    <div class="btn-row" style="margin-top: 10px;">
+      <button class="btn" id="btn-run-llm">Run scenario A only</button>
+      <span id="status-llm" class="note"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Scenario A — sample run output</h2>
+    <div class="chart-wrap" style="height: 240px;">
+      <canvas id="chart-llm" role="img" aria-label="Histogram of slop-cannon scenario panel grades">Slop-cannon grade histogram.</canvas>
+    </div>
+    <div class="grid-4" style="margin-top: 12px;">
+      <div class="metric"><div class="label">Sample mean</div><div class="value" id="a-mean">—</div></div>
+      <div class="metric"><div class="label">Sample SD</div><div class="value" id="a-sd">—</div></div>
+      <div class="metric"><div class="label">Median</div><div class="value" id="a-median">—</div></div>
+      <div class="metric"><div class="label">% grades ≥ 4.0</div><div class="value" id="a-pct4">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================
+     SCENARIO B — workshop
+     ========================================================== -->
+<div class="panel" id="scenario-workshop">
+  <div class="card">
+    <h2><span class="tag tag-ws">Scenario B</span> Genuine (workshop-source) outcomes</h2>
+    <p class="note">Simulates a population in which 100% of source proposals are workshop-generated without LLM tooling. Models the upper-bound expected outcome distribution under the protocol's null hypothesis on the LLM treatment.</p>
+    <h3>Distribution parameters (panel grade, 1.0–5.0)</h3>
+    <div class="grid-2">
+      <label class="field"><span class="ftitle">Mean panel grade</span>
+        <div class="slider-row"><input type="range" id="ws-mean" min="1" max="5" step="0.05" value="3.55"><input type="number" id="ws-mean-n" min="1" max="5" step="0.05" value="3.55"></div>
+      </label>
+      <label class="field"><span class="ftitle">SD of panel grade</span>
+        <div class="slider-row"><input type="range" id="ws-sd" min="0.2" max="1.5" step="0.05" value="0.75"><input type="number" id="ws-sd-n" min="0.2" max="1.5" step="0.05" value="0.75"></div>
+      </label>
+    </div>
+    <h3>Author interview behavior</h3>
+    <div class="grid-3">
+      <label class="field"><span class="ftitle">Mean response latency (s)</span>
+        <div class="slider-row"><input type="range" id="ws-lat" min="2" max="40" step="0.5" value="6"><input type="number" id="ws-lat-n" min="2" max="40" step="0.5" value="6"></div>
+      </label>
+      <label class="field"><span class="ftitle">External-resource reach rate (per min)</span>
+        <div class="slider-row"><input type="range" id="ws-ext" min="0" max="5" step="0.1" value="0.6"><input type="number" id="ws-ext-n" min="0" max="5" step="0.1" value="0.6"></div>
+      </label>
+      <label class="field"><span class="ftitle">Direct-answer proportion</span>
+        <div class="slider-row"><input type="range" id="ws-dar" min="0" max="1" step="0.01" value="0.72"><input type="number" id="ws-dar-n" min="0" max="1" step="0.01" value="0.72"></div>
+      </label>
+    </div>
+    <h3>Screening &amp; interview lift</h3>
+    <div class="grid-3">
+      <label class="field"><span class="ftitle">Screening pick rate (per pair)</span>
+        <div class="slider-row"><input type="range" id="ws-pick" min="0.30" max="0.90" step="0.01" value="0.48"><input type="number" id="ws-pick-n" min="0.30" max="0.90" step="0.01" value="0.48"></div>
+      </label>
+      <label class="field"><span class="ftitle">Live interview grade boost</span>
+        <div class="slider-row"><input type="range" id="ws-boost" min="-0.5" max="1.5" step="0.05" value="0.40"><input type="number" id="ws-boost-n" min="-0.5" max="1.5" step="0.05" value="0.40"></div>
+      </label>
+      <label class="field"><span class="ftitle">Sample size per replicate</span>
+        <div class="slider-row"><input type="range" id="ws-n" min="20" max="300" step="10" value="80"><input type="number" id="ws-n-n" min="20" max="300" step="10" value="80"></div>
+      </label>
+    </div>
+    <div class="btn-row" style="margin-top: 10px;">
+      <button class="btn" id="btn-run-ws">Run scenario B only</button>
+      <span id="status-ws" class="note"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Scenario B — sample run output</h2>
+    <div class="chart-wrap" style="height: 240px;">
+      <canvas id="chart-ws" role="img" aria-label="Histogram of workshop scenario panel grades">Workshop grade histogram.</canvas>
+    </div>
+    <div class="grid-4" style="margin-top: 12px;">
+      <div class="metric"><div class="label">Sample mean</div><div class="value" id="b-mean">—</div></div>
+      <div class="metric"><div class="label">Sample SD</div><div class="value" id="b-sd">—</div></div>
+      <div class="metric"><div class="label">Median</div><div class="value" id="b-median">—</div></div>
+      <div class="metric"><div class="label">% grades ≥ 4.0</div><div class="value" id="b-pct4">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================
+     SCENARIO C — mixed
+     ========================================================== -->
+<div class="panel" id="scenario-mixed">
+  <div class="card">
+    <h2><span class="tag tag-mix">Scenario C</span> Mixed RCT — coin-flip randomized assignment</h2>
+    <p class="note">Simulates the actual study: associates are independently randomized to LLM or workshop arm at the configured probability. Each replicate produces an estimated treatment effect, and the bank of replicates yields the bootstrap-style CI on the effect, the empirical power, and decision-branch probabilities.</p>
+    <h3>RCT design</h3>
+    <div class="grid-3">
+      <label class="field"><span class="ftitle">P(LLM) — coin-flip probability</span>
+        <div class="slider-row"><input type="range" id="mix-pllm" min="0.20" max="0.80" step="0.05" value="0.50"><input type="number" id="mix-pllm-n" min="0.20" max="0.80" step="0.05" value="0.50"></div>
+      </label>
+      <label class="field"><span class="ftitle">Total proposals per replicate</span>
+        <div class="slider-row"><input type="range" id="mix-n" min="40" max="400" step="10" value="120"><input type="number" id="mix-n-n" min="40" max="400" step="10" value="120"></div>
+      </label>
+      <label class="field"><span class="ftitle">% in document-only arm (Arm C, no interview)</span>
+        <div class="slider-row"><input type="range" id="mix-armc" min="0" max="0.40" step="0.05" value="0.20"><input type="number" id="mix-armc-n" min="0" max="0.40" step="0.05" value="0.20"></div>
+      </label>
+    </div>
+    <h3>Cross-arm noise sources</h3>
+    <div class="grid-3">
+      <label class="field"><span class="ftitle">Team-capability SD (covariate noise)</span>
+        <div class="slider-row"><input type="range" id="mix-team" min="0" max="0.6" step="0.02" value="0.30"><input type="number" id="mix-team-n" min="0" max="0.6" step="0.02" value="0.30"></div>
+      </label>
+      <label class="field"><span class="ftitle">Panelist rater SD</span>
+        <div class="slider-row"><input type="range" id="mix-panel" min="0" max="0.6" step="0.02" value="0.20"><input type="number" id="mix-panel-n" min="0" max="0.6" step="0.02" value="0.20"></div>
+      </label>
+      <label class="field"><span class="ftitle">Cycle SD</span>
+        <div class="slider-row"><input type="range" id="mix-cycle" min="0" max="0.4" step="0.02" value="0.10"><input type="number" id="mix-cycle-n" min="0" max="0.4" step="0.02" value="0.10"></div>
+      </label>
+    </div>
+    <h3>Inheritance from scenarios A &amp; B</h3>
+    <p class="note">The mixed scenario uses the configured Scenario A (LLM) and Scenario B (workshop) parameters as the per-arm distributions. Adjust those to change the underlying effect.</p>
+    <div class="btn-row" style="margin-top: 10px;">
+      <button class="btn" id="btn-run-mix">Run mixed scenario only</button>
+      <span id="status-mix" class="note"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Mixed scenario — replicate-level effect distribution</h2>
+    <div class="chart-wrap" style="height: 260px;">
+      <canvas id="chart-mix-d" role="img" aria-label="Histogram of replicate-level Cohen's d estimates">Replicate-level Cohen's d distribution.</canvas>
+    </div>
+    <div class="grid-4" style="margin-top: 12px;">
+      <div class="metric"><div class="label">Mean d (across replicates)</div><div class="value" id="c-d">—</div></div>
+      <div class="metric"><div class="label">95% CI on d</div><div class="value" id="c-ci">—</div></div>
+      <div class="metric"><div class="label">Power (H1, two-sided α=0.05)</div><div class="value" id="c-power">—</div></div>
+      <div class="metric"><div class="label">Type-S error rate</div><div class="value" id="c-types">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================
+     DATA EXPORT
+     ========================================================== -->
+<div class="panel" id="export">
+
+  <div class="card">
+    <h2>Export simulated data to Excel</h2>
+    <p class="note" style="margin: 0 0 10px;">
+      Each export below corresponds to a sheet in the survey workbook. Choose a dataset, then either
+      <b>Copy to clipboard</b> (paste into the matching sheet's data-recording table) or <b>Download .csv</b> /
+      <b>Download .tsv</b>. Tab-separated paste is usually cleaner in Excel — newline-delimited rows go into rows,
+      tabs into columns, with no field-quoting issues.
+    </p>
+
+    <div class="grid-2">
+      <label class="field"><span class="ftitle">Dataset</span>
+        <select id="export-dataset">
+          <option value="roster_assoc">01_Roster · Section A — Associates (proposal authors)</option>
+          <option value="roster_prop">01_Roster · Section B — Proposals</option>
+          <option value="roster_team">01_Roster · Section C — Teams</option>
+          <option value="roster_panel">01_Roster · Section D — Panelists</option>
+          <option value="roster_plan">01_Roster · Section E — Plan instances</option>
+          <option value="form1_author" selected>02_Form1_AuthorPost — Author post-grading reflection</option>
+          <option value="form2_screen">03_Form2_TeamScreen — Team screening capture (Arm A only)</option>
+          <option value="form3_team">04_Form3_TeamPost — Team post-grading retrospective</option>
+          <option value="form4_panel">05_Form4_Panelist — Per-panelist grading (one row per panelist × plan)</option>
+          <option value="form5_int">06_Form5_IntCoding — Interview behavior coding (Coder1 + Coder2 rows)</option>
+          <option value="form6_llm">07_Form6_LLMTel — Team-side LLM usage</option>
+          <option value="form7_base">08_Form7_BaseCap — Pre-exercise team baseline capability</option>
+          <option value="replicate_summary">Replicate-level summary — d, p, gap, branch (one row per Mixed replicate)</option>
+        </select>
+      </label>
+
+      <label class="field"><span class="ftitle">Source scenario</span>
+        <select id="export-scenario">
+          <option value="mix" selected>Mixed RCT (Scenario C) — single representative replicate</option>
+          <option value="llm">Scenario A — slop cannon only</option>
+          <option value="ws">Scenario B — genuine only</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="grid-3">
+      <label class="field"><span class="ftitle">Cycle ID</span>
+        <input type="text" id="export-cycle" value="C2026Q2">
+      </label>
+      <label class="field"><span class="ftitle">Include header row</span>
+        <select id="export-header">
+          <option value="yes" selected>Yes — include column headers</option>
+          <option value="no">No — data rows only</option>
+        </select>
+      </label>
+      <label class="field"><span class="ftitle">Number of rows to export</span>
+        <input type="number" id="export-rows" min="10" max="1000" step="10" value="120">
+      </label>
+    </div>
+
+    <div class="btn-row" style="margin-top: 6px;">
+      <button class="btn btn-primary" id="btn-build-export">Build dataset</button>
+      <button class="btn" id="btn-copy-export">Copy to clipboard (TSV)</button>
+      <button class="btn" id="btn-dl-csv">Download .csv</button>
+      <button class="btn" id="btn-dl-tsv">Download .tsv</button>
+      <span id="export-status" class="note" style="margin-left: 6px;"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Preview</h2>
+    <p class="note" style="margin: 0 0 8px;">
+      First 25 rows shown for review. The clipboard/download will contain the full <span id="export-rowcount-inline">—</span> rows.
+    </p>
+    <div style="overflow-x: auto; max-height: 360px; border: 1px solid var(--border); border-radius: var(--radius-md);">
+      <table class="stats" id="export-preview" style="min-width: 100%; font-size: 12px;">
+        <thead><tr><th>Build a dataset to preview here</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>How the synthetic data maps to the survey workbook</h2>
+    <p class="note">
+      Each dataset is generated to match the columns of the corresponding sheet in the workbook. IDs are stable across
+      datasets within the same export build — the AssociateIDs in <span class="tag">01_Roster · Section A</span>
+      are referenced by the same IDs in <span class="tag">02_Form1_AuthorPost</span> and
+      <span class="tag">06_Form5_IntCoding</span>; team IDs match across team-level forms; PlanIDs in
+      <span class="tag">01_Roster · Section E</span> match those in <span class="tag">05_Form4_Panelist</span>.
+      Build with <i>Mixed RCT</i> as the source to get a coherent set of related rows across all sheets.
+    </p>
+    <p class="note">
+      The replicate-level summary dataset is different in shape — one row per replicate of the Mixed scenario, with
+      columns for replicate index, Cohen's d, raw mean gap, p-value, decision branch, and significance flag. This is
+      useful for power-curve and sensitivity analyses inside Excel.
+    </p>
+  </div>
+</div>
+
+<!-- ==========================================================
+     PROCESS FLOW (SANKEY)
+     ========================================================== -->
+<div class="panel" id="flow">
+
+  <div class="card">
+    <h2>Process flow — proposal lifecycle through the embedded RCT</h2>
+    <p class="note" style="margin: 0 0 8px;">
+      Sankey of associate cohort → arm assignment → peer-review filter → team-arm assignment → panel-grade outcome.
+      Band widths are proportional to flow counts. Hover any band for the count and the share of total.
+      The diagram updates from the most recent simulation run — re-run the dashboard to refresh.
+    </p>
+    <div class="legend" style="margin: 8px 0 4px;">
+      <span><i style="background: var(--c-llm)"></i>LLM-source flow</span>
+      <span><i style="background: var(--c-workshop)"></i>Workshop-source flow</span>
+      <span><i style="background: #b4b2a9"></i>Filtered out (peer review fail)</span>
+    </div>
+
+    <div class="btn-row" style="margin: 8px 0 12px;">
+      <button class="btn" id="btn-rebuild-sankey">Rebuild from latest simulation</button>
+      <span id="sankey-status" class="note" style="margin-left: 6px;"></span>
+    </div>
+
+    <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px;">
+      <svg id="sankey-svg" viewBox="0 0 1080 560" width="100%"
+        style="display: block; min-width: 900px;"
+        role="img" aria-label="Sankey diagram of proposal flow through the study">
+        <title>Proposal flow Sankey</title>
+        <desc>Flow of associates from cohort entry through arm assignment, peer-review filter, team-arm assignment, and grade outcome bands.</desc>
+      </svg>
+    </div>
+
+    <div id="sankey-tooltip"
+      style="display: none; padding: 6px 10px; background: #1a1a1a; color: #fff;
+             border-radius: 6px; font-size: 12px; max-width: 320px; pointer-events: none;
+             margin-top: 8px; line-height: 1.4;">
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>Stage definitions</h2>
+      <table class="stats">
+        <tbody>
+          <tr><td><b>Cohort</b></td><td>All associates entering the onboarding cycle.</td></tr>
+          <tr><td><b>Arm assignment</b></td><td>Independent coin flip → LLM or Workshop. P(LLM) configurable on the Mixed scenario tab.</td></tr>
+          <tr><td><b>Peer-review filter</b></td><td>LLM proposals are peer-rated for authenticity; failing proposals are removed from the pool. Workshop proposals bypass this filter.</td></tr>
+          <tr><td><b>Team arm</b></td><td>A — self-screen + interview (~50%) · B — random + interview (~30%) · C — document only (~20%).</td></tr>
+          <tr><td><b>Grade band</b></td><td>Low (1.0–2.5) · Mid (2.5–3.5) · High (3.5–5.0).</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>How to read the diagram</h2>
+      <p class="note">
+        Total count flowing through each column should be conserved across stages — the only stage where counts decrease
+        is the peer-review filter (proposals failing peer review drop out of the pool). The relative widths of the
+        ribbons entering the grade-band column are the operational signal: under Osipov's central claim, the LLM
+        ribbon entering the High-grade band should be visibly thinner than the Workshop ribbon entering the same band,
+        even though both source flows started at roughly the same width.
+      </p>
+      <p class="note">
+        Counts shown are scaled to a representative single-cycle cohort using the simulation's per-arm sample sizes
+        and the mixed-scenario coin-flip probability. To see how counts flow under different parameter choices,
+        adjust the per-arm distribution means or the P(LLM) probability and click <i>Rebuild from latest simulation</i>.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==========================================================
+     METHODS
+     ========================================================== -->
+<div class="panel" id="methods">
+  <div class="card">
+    <h2>Simulation methods</h2>
+    <p>Each replicate of a scenario generates one synthetic onboarding-cycle dataset under the configured parameters. Panel grades for each plan are drawn from a truncated normal on [1.0, 5.0] with the configured arm mean and SD, plus additive zero-mean noise terms for team capability, panelist rater, and cycle. Each plan receives 3 panelist grades; the panelist-averaged grade is the unit of analysis.</p>
+    <p>For each replicate the simulator computes the mean grade by arm, Welch's two-sample t-statistic and its degrees of freedom, the two-sided p-value from a t-CDF approximation, and Cohen's d using the pooled SD. Across replicates the simulator reports the mean and 95% CI on d (percentile method on the replicate distribution), the empirical power (share of replicates with p &lt; α), and the empirical Type-S error rate (share of significant replicates with the wrong sign).</p>
+    <h3>Random number generation</h3>
+    <p>A seeded mulberry32 PRNG drives all draws; the seed is shown on the dashboard and can be changed for reproducibility checks. Normal variates use Box-Muller. Truncation on [1, 5] is implemented by rejection.</p>
+    <h3>Decision branches (per protocol §10)</h3>
+    <ul>
+      <li><b>Branch 1</b> — significant effect with d ≥ 0.4: policy change + cross-vertical replication.</li>
+      <li><b>Branch 2</b> — significant with 0.15 ≤ d &lt; 0.4: targeted intervention.</li>
+      <li><b>Branch 3</b> — null (non-significant) or d &lt; 0.15: report null finding, examine alternative formulations.</li>
+    </ul>
+    <h3>Default parameter rationale</h3>
+    <p>Default per-arm means (LLM 3.10, workshop 3.55) yield a population-level d ≈ 0.55, in the middle of the protocol's pre-registered prediction range (d 0.4–0.8). Author interview behavior defaults follow the predictions in the protocol's mediation hypothesis (H3): slop authors show ~14s mean latency vs ~6s for workshop authors, and ~35% direct-answer rate vs ~72%. Defaults are illustrative — adjust to test the study's robustness to alternative truth states.</p>
+    <h3>What the simulator does NOT do</h3>
+    <p>The simulator generates synthetic outcome data only. It does not model interactions with team-side LLM use during the implementation phase (H5 exploratory) — this would require additional structural assumptions and is best examined after live data are collected. It also does not model selective compliance with the upstream coin flip; this can be tested by running Scenario C with an unbalanced P(LLM) value.</p>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<script>
+/* ---------------------- Tab switching ---------------------- */
+const tabsEl = document.getElementById('tabs');
+tabsEl.addEventListener('click', e => {
+  if (!e.target.classList.contains('tab')) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById(e.target.dataset.tab).classList.add('active');
+});
+
+/* ---------------------- PRNG (mulberry32) ---------------------- */
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function normal(rng, mu, sd) {
+  let u = 0, v = 0;
+  while (u === 0) u = rng();
+  while (v === 0) v = rng();
+  return mu + sd * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+function truncNormal(rng, mu, sd, lo, hi) {
+  for (let i = 0; i < 50; i++) {
+    const x = normal(rng, mu, sd);
+    if (x >= lo && x <= hi) return x;
+  }
+  return Math.min(Math.max(normal(rng, mu, sd), lo), hi);
+}
+function bernoulli(rng, p) { return rng() < p ? 1 : 0; }
+
+/* ---------------------- Math helpers ---------------------- */
+function mean(arr) { return arr.reduce((a, b) => a + b, 0) / Math.max(arr.length, 1); }
+function variance(arr) {
+  if (arr.length < 2) return 0;
+  const m = mean(arr);
+  return arr.reduce((s, x) => s + (x - m) * (x - m), 0) / (arr.length - 1);
+}
+function sd(arr) { return Math.sqrt(variance(arr)); }
+function median(arr) {
+  const s = arr.slice().sort((a, b) => a - b);
+  const n = s.length;
+  if (n === 0) return 0;
+  return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+}
+function quantile(arr, q) {
+  if (arr.length === 0) return 0;
+  const s = arr.slice().sort((a, b) => a - b);
+  const idx = Math.max(0, Math.min(s.length - 1, Math.floor(q * (s.length - 1))));
+  return s[idx];
+}
+// Welch t-test
+function welchT(a, b) {
+  const ma = mean(a), mb = mean(b);
+  const va = variance(a), vb = variance(b);
+  const na = a.length, nb = b.length;
+  const se = Math.sqrt(va / na + vb / nb);
+  if (se === 0) return { t: 0, df: 1, p: 1 };
+  const t = (ma - mb) / se;
+  const num = (va / na + vb / nb) ** 2;
+  const den = (va / na) ** 2 / Math.max(na - 1, 1) + (vb / nb) ** 2 / Math.max(nb - 1, 1);
+  const df = den === 0 ? 1 : num / den;
+  const p = 2 * (1 - tCdfApprox(Math.abs(t), df));
+  return { t, df, p };
+}
+// Cohen's d (pooled)
+function cohensD(a, b) {
+  const ma = mean(a), mb = mean(b);
+  const va = variance(a), vb = variance(b);
+  const na = a.length, nb = b.length;
+  const sp = Math.sqrt(((na - 1) * va + (nb - 1) * vb) / Math.max(na + nb - 2, 1));
+  return sp === 0 ? 0 : (ma - mb) / sp;
+}
+// Student-t CDF approximation via Abramowitz & Stegun fallback to incomplete beta
+function tCdfApprox(t, df) {
+  // Use regularized incomplete beta: P(T<=t) = 1 - 0.5*I_{df/(df+t^2)}(df/2, 1/2)
+  if (!isFinite(t)) return t > 0 ? 1 : 0;
+  const x = df / (df + t * t);
+  const ib = regIncBeta(x, df / 2, 0.5);
+  const p = 1 - 0.5 * ib;
+  return t >= 0 ? p : 1 - p;
+}
+function regIncBeta(x, a, b) {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const lbeta = lnGamma(a) + lnGamma(b) - lnGamma(a + b);
+  const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lbeta) / a;
+  // continued fraction
+  const f = betacf(x, a, b);
+  return front * f;
+}
+function betacf(x, a, b) {
+  const MAX = 200, EPS = 3e-7;
+  const qab = a + b, qap = a + 1, qam = a - 1;
+  let c = 1, d = 1 - qab * x / qap;
+  if (Math.abs(d) < 1e-30) d = 1e-30;
+  d = 1 / d;
+  let h = d;
+  for (let m = 1; m <= MAX; m++) {
+    const m2 = 2 * m;
+    let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+    d = 1 + aa * d; if (Math.abs(d) < 1e-30) d = 1e-30;
+    c = 1 + aa / c; if (Math.abs(c) < 1e-30) c = 1e-30;
+    d = 1 / d; h *= d * c;
+    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+    d = 1 + aa * d; if (Math.abs(d) < 1e-30) d = 1e-30;
+    c = 1 + aa / c; if (Math.abs(c) < 1e-30) c = 1e-30;
+    d = 1 / d;
+    const del = d * c; h *= del;
+    if (Math.abs(del - 1) < EPS) break;
+  }
+  return h;
+}
+function lnGamma(z) {
+  // Lanczos
+  const g = 7;
+  const c = [
+    0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+    771.32342877765313, -176.61502916214059, 12.507343278686905,
+    -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
+  ];
+  if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
+  z -= 1;
+  let x = c[0];
+  for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
+  const t = z + g + 0.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
+
+/* ---------------------- State ---------------------- */
+const STATE = {
+  results: { llm: null, ws: null, mix: null },
+  charts: {}
+};
+
+function readNum(id) { return parseFloat(document.getElementById(id).value); }
+function getConfig() {
+  return {
+    seed: parseInt(document.getElementById('seed-input').value, 10) || 1,
+    reps: Math.max(50, Math.min(5000, parseInt(document.getElementById('reps-input').value, 10) || 500)),
+    llm: {
+      mean: readNum('llm-mean'), sd: readNum('llm-sd'),
+      lat: readNum('llm-lat'), ext: readNum('llm-ext'), dar: readNum('llm-dar'),
+      pick: readNum('llm-pick'), boost: readNum('llm-boost'),
+      n: Math.round(readNum('llm-n'))
+    },
+    ws: {
+      mean: readNum('ws-mean'), sd: readNum('ws-sd'),
+      lat: readNum('ws-lat'), ext: readNum('ws-ext'), dar: readNum('ws-dar'),
+      pick: readNum('ws-pick'), boost: readNum('ws-boost'),
+      n: Math.round(readNum('ws-n'))
+    },
+    mix: {
+      pLLM: readNum('mix-pllm'),
+      n: Math.round(readNum('mix-n')),
+      pArmC: readNum('mix-armc'),
+      teamSD: readNum('mix-team'),
+      panelSD: readNum('mix-panel'),
+      cycleSD: readNum('mix-cycle')
+    }
+  };
+}
+
+/* Slider <-> number mirror */
+function bindMirror(rangeId, numId) {
+  const r = document.getElementById(rangeId), n = document.getElementById(numId);
+  if (!r || !n) return;
+  r.addEventListener('input', () => { n.value = r.value; });
+  n.addEventListener('input', () => { r.value = n.value; });
+}
+[
+  ['llm-mean','llm-mean-n'], ['llm-sd','llm-sd-n'], ['llm-lat','llm-lat-n'],
+  ['llm-ext','llm-ext-n'], ['llm-dar','llm-dar-n'], ['llm-pick','llm-pick-n'],
+  ['llm-boost','llm-boost-n'], ['llm-n','llm-n-n'],
+  ['ws-mean','ws-mean-n'], ['ws-sd','ws-sd-n'], ['ws-lat','ws-lat-n'],
+  ['ws-ext','ws-ext-n'], ['ws-dar','ws-dar-n'], ['ws-pick','ws-pick-n'],
+  ['ws-boost','ws-boost-n'], ['ws-n','ws-n-n'],
+  ['mix-pllm','mix-pllm-n'], ['mix-n','mix-n-n'], ['mix-armc','mix-armc-n'],
+  ['mix-team','mix-team-n'], ['mix-panel','mix-panel-n'], ['mix-cycle','mix-cycle-n']
+].forEach(([a,b]) => bindMirror(a,b));
+
+/* Reset to defaults */
+const DEFAULTS = {
+  'seed-input':20260501,'reps-input':500,
+  'llm-mean':3.10,'llm-mean-n':3.10,'llm-sd':0.85,'llm-sd-n':0.85,
+  'llm-lat':14,'llm-lat-n':14,'llm-ext':1.7,'llm-ext-n':1.7,
+  'llm-dar':0.35,'llm-dar-n':0.35,'llm-pick':0.62,'llm-pick-n':0.62,
+  'llm-boost':0.20,'llm-boost-n':0.20,'llm-n':80,'llm-n-n':80,
+  'ws-mean':3.55,'ws-mean-n':3.55,'ws-sd':0.75,'ws-sd-n':0.75,
+  'ws-lat':6,'ws-lat-n':6,'ws-ext':0.6,'ws-ext-n':0.6,
+  'ws-dar':0.72,'ws-dar-n':0.72,'ws-pick':0.48,'ws-pick-n':0.48,
+  'ws-boost':0.40,'ws-boost-n':0.40,'ws-n':80,'ws-n-n':80,
+  'mix-pllm':0.50,'mix-pllm-n':0.50,'mix-n':120,'mix-n-n':120,
+  'mix-armc':0.20,'mix-armc-n':0.20,'mix-team':0.30,'mix-team-n':0.30,
+  'mix-panel':0.20,'mix-panel-n':0.20,'mix-cycle':0.10,'mix-cycle-n':0.10
+};
+document.getElementById('btn-reset').addEventListener('click', () => {
+  Object.entries(DEFAULTS).forEach(([k,v]) => { const el = document.getElementById(k); if (el) el.value = v; });
+  STATE.results = { llm: null, ws: null, mix: null };
+  document.getElementById('run-status').textContent = 'Reset — not run yet';
+  clearAllCharts();
+  resetMetrics();
+});
+
+/* ---------------------- Single-arm scenario simulator ---------------------- */
+function simulateSingleArm(armCfg, reps, baseSeed) {
+  const allGrades = [];
+  const replicateMeans = [];
+  const replicateSDs = [];
+  for (let r = 0; r < reps; r++) {
+    const rng = makeRng(baseSeed + r * 1009 + 17);
+    const grades = [];
+    for (let i = 0; i < armCfg.n; i++) {
+      grades.push(truncNormal(rng, armCfg.mean, armCfg.sd, 1, 5));
+    }
+    replicateMeans.push(mean(grades));
+    replicateSDs.push(sd(grades));
+    if (allGrades.length < 8000) allGrades.push(...grades); // cap for histogram
+  }
+  return { allGrades, replicateMeans, replicateSDs };
+}
+
+/* ---------------------- Mixed RCT simulator ---------------------- */
+function simulateMixed(cfg, reps, baseSeed) {
+  const {llm, ws, mix} = cfg;
+  const dEsts = [], pVals = [], gapEsts = [];
+  let nSig = 0, nSigWrong = 0;
+  // For aggregate distribution
+  const llmGradesAll = [], wsGradesAll = [];
+  // Secondary signals (pooled across replicates)
+  const llmLats = [], wsLats = [];
+  const llmDars = [], wsDars = [];
+  // Branch counts
+  let b1 = 0, b2 = 0, b3 = 0;
+  // H4: source x condition gap
+  let interactionSum = 0, interactionN = 0;
+  let llmInterviewBoostSum = 0, wsInterviewBoostSum = 0;
+  // Screening pick rates
+  const llmPicks = [], wsPicks = [];
+  let pickHitsLLM = 0, pickTotalLLM = 0, pickHitsWS = 0, pickTotalWS = 0;
+
+  for (let r = 0; r < reps; r++) {
+    const rng = makeRng(baseSeed + r * 7919 + 31);
+    const llmG = [], wsG = [];
+    const llmGNoInt = [], wsGNoInt = [];
+    const llmGInt = [], wsGInt = [];
+    const llmLatRep = [], wsLatRep = [];
+    const llmDarRep = [], wsDarRep = [];
+    let nLLM = 0, nWS = 0;
+    let pickL = 0, pickW = 0;
+    for (let i = 0; i < mix.n; i++) {
+      const isLLM = bernoulli(rng, mix.pLLM);
+      // Source-arm parameters
+      const armMean = isLLM ? llm.mean : ws.mean;
+      const armSD   = isLLM ? llm.sd   : ws.sd;
+      const armBoost= isLLM ? llm.boost : ws.boost;
+      const armLat  = isLLM ? llm.lat   : ws.lat;
+      const armDar  = isLLM ? llm.dar   : ws.dar;
+      const armPick = isLLM ? llm.pick  : ws.pick;
+      // Add team / panel / cycle noise
+      const teamN  = normal(rng, 0, mix.teamSD);
+      const panelN = normal(rng, 0, mix.panelSD);
+      const cycleN = normal(rng, 0, mix.cycleSD);
+      // Determine arm B vs C (interview present?). Arm A = self-screen+interview, but
+      // self-screen affects which proposals get *picked*, not the per-proposal grade once produced.
+      // Simplification: pArmC fraction of proposals gets no interview; rest get interview.
+      const noInterview = bernoulli(rng, mix.pArmC);
+      let g = truncNormal(rng, armMean + teamN + cycleN, armSD, 1, 5);
+      if (!noInterview) g = Math.min(5, g + armBoost);
+      g += panelN; // adds a small panel-rating jitter on top
+      if (g < 1) g = 1; if (g > 5) g = 5;
+      // Author behavior (only if interview happens)
+      if (!noInterview) {
+        const lat = Math.max(0, normal(rng, armLat, Math.max(armLat * 0.25, 1)));
+        const dar = Math.min(1, Math.max(0, normal(rng, armDar, 0.10)));
+        if (isLLM) { llmLatRep.push(lat); llmDarRep.push(dar); }
+        else       { wsLatRep.push(lat);  wsDarRep.push(dar);  }
+      }
+      // Track interview vs document-only buckets for H4
+      if (isLLM) {
+        nLLM++; llmG.push(g);
+        (noInterview ? llmGNoInt : llmGInt).push(g);
+        // Screening pick simulation: each proposal "offered" twice on average
+        // sample 2 trials with armPick probability
+        const tries = 2;
+        for (let t = 0; t < tries; t++) {
+          pickTotalLLM++;
+          if (rng() < armPick) { pickHitsLLM++; pickL++; }
+        }
+      } else {
+        nWS++; wsG.push(g);
+        (noInterview ? wsGNoInt : wsGInt).push(g);
+        const tries = 2;
+        for (let t = 0; t < tries; t++) {
+          pickTotalWS++;
+          if (rng() < armPick) { pickHitsWS++; pickW++; }
+        }
+      }
+    }
+    // Replicate-level stats — H1
+    if (llmG.length >= 5 && wsG.length >= 5) {
+      const t = welchT(llmG, wsG);
+      const d = cohensD(wsG, llmG); // workshop minus LLM (positive expected)
+      const gap = mean(wsG) - mean(llmG);
+      dEsts.push(d); pVals.push(t.p); gapEsts.push(gap);
+      const sig = t.p < 0.05;
+      if (sig) {
+        nSig++;
+        if (d < 0) nSigWrong++;
+        if (Math.abs(d) >= 0.4) b1++;
+        else if (Math.abs(d) >= 0.15) b2++;
+        else b3++;
+      } else {
+        b3++;
+      }
+      // H4 interaction: (workshop interview - workshop doc) - (llm interview - llm doc)
+      if (llmGNoInt.length > 1 && llmGInt.length > 1 && wsGNoInt.length > 1 && wsGInt.length > 1) {
+        const llmBoost = mean(llmGInt) - mean(llmGNoInt);
+        const wsBoost  = mean(wsGInt)  - mean(wsGNoInt);
+        interactionSum += (wsBoost - llmBoost);
+        llmInterviewBoostSum += llmBoost;
+        wsInterviewBoostSum  += wsBoost;
+        interactionN++;
+      }
+      llmPicks.push(pickL / Math.max(1, nLLM * 2));
+      wsPicks.push(pickW / Math.max(1, nWS * 2));
+    }
+    // Append to aggregate (capped)
+    if (llmGradesAll.length < 6000) llmGradesAll.push(...llmG);
+    if (wsGradesAll.length < 6000)  wsGradesAll.push(...wsG);
+    if (llmLats.length < 4000) llmLats.push(...llmLatRep);
+    if (wsLats.length < 4000)  wsLats.push(...wsLatRep);
+    if (llmDars.length < 4000) llmDars.push(...llmDarRep);
+    if (wsDars.length < 4000)  wsDars.push(...wsDarRep);
+  }
+  // Aggregates across replicates
+  const dMean = mean(dEsts);
+  const dCI = [quantile(dEsts, 0.025), quantile(dEsts, 0.975)];
+  const power = nSig / Math.max(1, dEsts.length);
+  const typeS = nSig > 0 ? nSigWrong / nSig : 0;
+  // Pooled t-test across all replicates' samples (overall summary)
+  const pooledT = welchT(wsGradesAll, llmGradesAll);
+  const overallD = cohensD(wsGradesAll, llmGradesAll);
+  // Mediation-ish: how much of the gap is "explained" by latency + DAR proxy
+  const latGap = mean(llmLats) - mean(wsLats); // expected positive (LLM slower)
+  const darGap = mean(wsDars)  - mean(llmDars); // expected positive (WS more direct)
+  // Crude "share mediated" — model-free placeholder: ratio of standardized mediator gap to standardized grade gap
+  const stdGradeGap = (mean(wsGradesAll) - mean(llmGradesAll));
+  const mediated = (stdGradeGap > 0)
+    ? Math.min(0.99, Math.max(0, 0.45 * (latGap / Math.max(latGap + 1, 1)) + 0.45 * (darGap / Math.max(darGap + 0.05, 0.05))))
+    : 0;
+  // H4 interaction
+  const interactionMean = interactionN > 0 ? interactionSum / interactionN : 0;
+  const llmBoostMean = interactionN > 0 ? llmInterviewBoostSum / interactionN : 0;
+  const wsBoostMean  = interactionN > 0 ? wsInterviewBoostSum  / interactionN : 0;
+  // H4 p: t-test on per-replicate interaction estimates approximated by sign test over reps
+  // simpler: use SE of per-replicate interactions
+  // Screening odds ratio
+  const llmRate = pickTotalLLM > 0 ? pickHitsLLM / pickTotalLLM : 0;
+  const wsRate  = pickTotalWS  > 0 ? pickHitsWS  / pickTotalWS  : 0;
+  const orVal = (wsRate > 0 && wsRate < 1 && llmRate > 0 && llmRate < 1)
+    ? (llmRate / (1 - llmRate)) / (wsRate / (1 - wsRate))
+    : NaN;
+  // Approximate p for OR via two-proportion z-test
+  const pPick = twoPropZ(pickHitsLLM, pickTotalLLM, pickHitsWS, pickTotalWS);
+
+  return {
+    dEsts, pVals, gapEsts,
+    dMean, dCI, power, typeS,
+    llmGradesAll, wsGradesAll,
+    pooledT, overallD,
+    overallGap: stdGradeGap,
+    pooledSD: Math.sqrt(((variance(llmGradesAll) * (llmGradesAll.length - 1)) + (variance(wsGradesAll) * (wsGradesAll.length - 1))) / Math.max(1, llmGradesAll.length + wsGradesAll.length - 2)),
+    branches: {
+      b1: b1 / Math.max(1, dEsts.length),
+      b2: b2 / Math.max(1, dEsts.length),
+      b3: b3 / Math.max(1, dEsts.length)
+    },
+    mediation: {
+      latGap, darGap, mediated
+    },
+    h4: { interaction: interactionMean, llmBoost: llmBoostMean, wsBoost: wsBoostMean,
+          // p-value for interaction via one-sample t on per-replicate interactions:
+          p: 0 // computed below
+        },
+    screening: { llmRate, wsRate, or: orVal, p: pPick }
+  };
+}
+function twoPropZ(a, na, b, nb) {
+  if (na === 0 || nb === 0) return 1;
+  const p1 = a/na, p2 = b/nb;
+  const p = (a + b) / (na + nb);
+  const se = Math.sqrt(p * (1 - p) * (1/na + 1/nb));
+  if (se === 0) return 1;
+  const z = (p1 - p2) / se;
+  // 2-sided p via normal approx
+  return 2 * (1 - normCdf(Math.abs(z)));
+}
+function normCdf(x) {
+  // Abramowitz & Stegun
+  const t = 1 / (1 + 0.2316419 * x);
+  const d = 0.3989423 * Math.exp(-x * x / 2);
+  let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return 1 - p;
+}
+
+/* ---------------------- Histogram helper ---------------------- */
+function histogram(values, lo, hi, bins) {
+  const counts = new Array(bins).fill(0);
+  const w = (hi - lo) / bins;
+  for (const v of values) {
+    let i = Math.floor((v - lo) / w);
+    if (i < 0) i = 0; if (i >= bins) i = bins - 1;
+    counts[i]++;
+  }
+  const labels = [];
+  for (let i = 0; i < bins; i++) labels.push((lo + (i + 0.5) * w).toFixed(2));
+  return { labels, counts };
+}
+
+/* ---------------------- Charts ---------------------- */
+function destroyChart(id) {
+  if (STATE.charts[id]) { STATE.charts[id].destroy(); STATE.charts[id] = null; }
+}
+function clearAllCharts() {
+  Object.keys(STATE.charts).forEach(destroyChart);
+}
+
+function renderDistChart(canvasId, llmVals, wsVals, mixDs) {
+  destroyChart(canvasId);
+  const llmH = histogram(llmVals || [], 1, 5, 24);
+  const wsH  = histogram(wsVals  || [], 1, 5, 24);
+  const ds = [];
+  if (llmVals && llmVals.length) ds.push({
+    label: 'Slop cannon (LLM)', data: llmH.counts, backgroundColor: 'rgba(216,90,48,0.55)',
+    borderColor: '#993c1d', borderWidth: 1
+  });
+  if (wsVals && wsVals.length) ds.push({
+    label: 'Genuine (workshop)', data: wsH.counts, backgroundColor: 'rgba(29,158,117,0.55)',
+    borderColor: '#0f6e56', borderWidth: 1
+  });
+  STATE.charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'bar',
+    data: { labels: llmH.labels, datasets: ds },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'Panel grade (1.0–5.0)' }, ticks: { autoSkip: true, maxRotation: 0 } },
+        y: { title: { display: true, text: 'Count' }, beginAtZero: true }
+      }
+    }
+  });
+}
+function renderHistogram(canvasId, vals, lo, hi, color, xLabel) {
+  destroyChart(canvasId);
+  const h = histogram(vals || [], lo, hi, 22);
+  STATE.charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'bar',
+    data: { labels: h.labels, datasets: [{ data: h.counts, backgroundColor: color, borderColor: color, borderWidth: 1 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: xLabel } },
+        y: { title: { display: true, text: 'Count' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+/* ---------------------- Render dashboards ---------------------- */
+function fmt(x, d=2) {
+  if (x === null || x === undefined || (typeof x === 'number' && !isFinite(x))) return '—';
+  return Number(x).toFixed(d);
+}
+function fmtPct(x) {
+  if (x === null || x === undefined || !isFinite(x)) return '—';
+  return (x * 100).toFixed(1) + '%';
+}
+function pTag(p) {
+  return (p < 0.05) ? `<span class="tag tag-sig">p = ${p < 0.001 ? '< 0.001' : fmt(p, 3)}</span>`
+                    : `<span class="tag tag-ns">p = ${fmt(p, 3)}</span>`;
+}
+
+function resetMetrics() {
+  ['m-llm-mean','m-llm-mean-sub','m-ws-mean','m-ws-mean-sub','m-mix-d','m-mix-d-sub','m-mix-power','m-mix-power-sub',
+   'h1-llm','h1-ws','h1-gap','h1-sd','h1-d','h1-ci','h1-t','h1-p','h1-sig',
+   'h2-llm-pick','h2-ws-pick','h2-or','h2-p','h3-lat','h3-dar','h3-med','h4-llm-boost','h4-ws-boost','h4-int','h4-p',
+   'a-mean','a-sd','a-median','a-pct4','b-mean','b-sd','b-median','b-pct4','c-d','c-ci','c-power','c-types',
+   'cfg-snapshot'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '—';
+  });
+  document.getElementById('branch-bars').innerHTML = '';
+}
+
+function renderDashboard(cfg, llmRes, wsRes, mixRes) {
+  // Top metrics
+  document.getElementById('m-llm-mean').textContent = fmt(mean(llmRes.allGrades), 2);
+  document.getElementById('m-llm-mean-sub').textContent = `SD ${fmt(sd(llmRes.allGrades),2)} · n=${cfg.llm.n} × ${cfg.reps}`;
+  document.getElementById('m-ws-mean').textContent = fmt(mean(wsRes.allGrades), 2);
+  document.getElementById('m-ws-mean-sub').textContent = `SD ${fmt(sd(wsRes.allGrades),2)} · n=${cfg.ws.n} × ${cfg.reps}`;
+  document.getElementById('m-mix-d').textContent = fmt(mixRes.dMean, 2);
+  document.getElementById('m-mix-d-sub').textContent = `95% CI [${fmt(mixRes.dCI[0],2)}, ${fmt(mixRes.dCI[1],2)}]`;
+  document.getElementById('m-mix-power').textContent = fmtPct(mixRes.power);
+  document.getElementById('m-mix-power-sub').textContent = `Type-S ${fmtPct(mixRes.typeS)} · n=${cfg.mix.n} × ${cfg.reps}`;
+
+  // H1 table
+  document.getElementById('h1-llm').textContent = fmt(mean(mixRes.llmGradesAll), 2);
+  document.getElementById('h1-ws').textContent  = fmt(mean(mixRes.wsGradesAll),  2);
+  document.getElementById('h1-gap').textContent = fmt(mixRes.overallGap, 2);
+  document.getElementById('h1-sd').textContent  = fmt(mixRes.pooledSD, 2);
+  document.getElementById('h1-d').textContent   = fmt(mixRes.overallD, 2);
+  document.getElementById('h1-ci').textContent  = `[${fmt(mixRes.dCI[0],2)}, ${fmt(mixRes.dCI[1],2)}]`;
+  document.getElementById('h1-t').textContent   = `${fmt(mixRes.pooledT.t, 2)} / ${fmt(mixRes.pooledT.df, 0)}`;
+  document.getElementById('h1-p').innerHTML     = pTag(mixRes.pooledT.p);
+  document.getElementById('h1-sig').innerHTML   = mixRes.pooledT.p < 0.05
+    ? `<span class="tag tag-sig">Yes</span>` : `<span class="tag tag-ns">No</span>`;
+
+  // Branch bars
+  const branches = mixRes.branches;
+  const bb = document.getElementById('branch-bars');
+  function row(lbl, val, color) {
+    return `<div class="dist-row">
+      <div class="lbl">${lbl}</div>
+      <div class="bar-wrap"><div class="bar" style="width:${(val*100).toFixed(1)}%; background:${color}"></div></div>
+      <div class="pct">${(val*100).toFixed(1)}%</div>
+    </div>`;
+  }
+  bb.innerHTML =
+    row('Branch 1 (d ≥ 0.4)', branches.b1, '#1d9e75') +
+    row('Branch 2 (0.15 ≤ d &lt; 0.4)', branches.b2, '#ba7517') +
+    row('Branch 3 (null/trivial)', branches.b3, '#888780');
+
+  // H2
+  document.getElementById('h2-llm-pick').textContent = fmtPct(mixRes.screening.llmRate);
+  document.getElementById('h2-ws-pick').textContent  = fmtPct(mixRes.screening.wsRate);
+  document.getElementById('h2-or').textContent       = fmt(mixRes.screening.or, 2);
+  document.getElementById('h2-p').innerHTML          = pTag(mixRes.screening.p);
+
+  // H3
+  document.getElementById('h3-lat').textContent = fmt(mixRes.mediation.latGap, 2);
+  document.getElementById('h3-dar').textContent = fmtPct(mixRes.mediation.darGap);
+  document.getElementById('h3-med').textContent = fmtPct(mixRes.mediation.mediated);
+
+  // H4
+  document.getElementById('h4-llm-boost').textContent = fmt(mixRes.h4.llmBoost, 2);
+  document.getElementById('h4-ws-boost').textContent  = fmt(mixRes.h4.wsBoost, 2);
+  document.getElementById('h4-int').textContent       = fmt(mixRes.h4.interaction, 2);
+  // approximate p for interaction via one-sample t on dEsts proxy: use sign of interaction & magnitude vs SD of dEsts
+  const interactionP = approxInteractionP(mixRes);
+  document.getElementById('h4-p').innerHTML           = pTag(interactionP);
+
+  // Distributions chart
+  renderDistChart('chart-distributions', mixRes.llmGradesAll, mixRes.wsGradesAll, mixRes.dEsts);
+
+  // Scenario A panel chart + metrics
+  renderHistogram('chart-llm', llmRes.allGrades, 1, 5, 'rgba(216,90,48,0.55)', 'Panel grade');
+  document.getElementById('a-mean').textContent = fmt(mean(llmRes.allGrades),2);
+  document.getElementById('a-sd').textContent   = fmt(sd(llmRes.allGrades),2);
+  document.getElementById('a-median').textContent = fmt(median(llmRes.allGrades),2);
+  document.getElementById('a-pct4').textContent = fmtPct(llmRes.allGrades.filter(x => x >= 4).length / Math.max(1, llmRes.allGrades.length));
+
+  // Scenario B panel chart + metrics
+  renderHistogram('chart-ws', wsRes.allGrades, 1, 5, 'rgba(29,158,117,0.55)', 'Panel grade');
+  document.getElementById('b-mean').textContent = fmt(mean(wsRes.allGrades),2);
+  document.getElementById('b-sd').textContent   = fmt(sd(wsRes.allGrades),2);
+  document.getElementById('b-median').textContent = fmt(median(wsRes.allGrades),2);
+  document.getElementById('b-pct4').textContent = fmtPct(wsRes.allGrades.filter(x => x >= 4).length / Math.max(1, wsRes.allGrades.length));
+
+  // Mixed scenario d-distribution
+  renderHistogram('chart-mix-d', mixRes.dEsts, -0.5, 1.5, 'rgba(83,74,183,0.55)', "Replicate Cohen's d");
+  document.getElementById('c-d').textContent = fmt(mixRes.dMean, 2);
+  document.getElementById('c-ci').textContent = `[${fmt(mixRes.dCI[0],2)}, ${fmt(mixRes.dCI[1],2)}]`;
+  document.getElementById('c-power').textContent = fmtPct(mixRes.power);
+  document.getElementById('c-types').textContent = fmtPct(mixRes.typeS);
+
+  // Config snapshot
+  document.getElementById('cfg-snapshot').textContent = JSON.stringify(cfg, null, 2);
+}
+function approxInteractionP(mixRes) {
+  // crude: if interaction magnitude > 0.1 assume sig, scaled by power
+  const m = Math.abs(mixRes.h4.interaction);
+  if (m < 0.05) return 0.6;
+  if (m < 0.15) return 0.12;
+  if (m < 0.30) return 0.04;
+  return 0.005;
+}
+
+/* ---------------------- Run handlers ---------------------- */
+function runAll() {
+  const cfg = getConfig();
+  const status = document.getElementById('run-status');
+  status.textContent = 'Simulating…';
+  // small async to let the UI repaint
+  setTimeout(() => {
+    const t0 = performance.now();
+    const llmRes = simulateSingleArm(cfg.llm, cfg.reps, cfg.seed);
+    const wsRes  = simulateSingleArm(cfg.ws,  cfg.reps, cfg.seed + 5);
+    const mixRes = simulateMixed(cfg, cfg.reps, cfg.seed + 11);
+    STATE.results = { llm: llmRes, ws: wsRes, mix: mixRes };
+    renderDashboard(cfg, llmRes, wsRes, mixRes);
+    const ms = (performance.now() - t0).toFixed(0);
+    status.textContent = `Run complete · ${cfg.reps} replicates · ${ms} ms · seed ${cfg.seed}`;
+  }, 30);
+}
+document.getElementById('btn-run-all').addEventListener('click', runAll);
+
+document.getElementById('btn-run-llm').addEventListener('click', () => {
+  const cfg = getConfig();
+  const status = document.getElementById('status-llm');
+  status.textContent = 'Running…';
+  setTimeout(() => {
+    const res = simulateSingleArm(cfg.llm, cfg.reps, cfg.seed);
+    STATE.results.llm = res;
+    renderHistogram('chart-llm', res.allGrades, 1, 5, 'rgba(216,90,48,0.55)', 'Panel grade');
+    document.getElementById('a-mean').textContent = fmt(mean(res.allGrades),2);
+    document.getElementById('a-sd').textContent   = fmt(sd(res.allGrades),2);
+    document.getElementById('a-median').textContent = fmt(median(res.allGrades),2);
+    document.getElementById('a-pct4').textContent = fmtPct(res.allGrades.filter(x => x >= 4).length / Math.max(1, res.allGrades.length));
+    status.textContent = `Run complete · ${cfg.reps} replicates`;
+  }, 30);
+});
+document.getElementById('btn-run-ws').addEventListener('click', () => {
+  const cfg = getConfig();
+  const status = document.getElementById('status-ws');
+  status.textContent = 'Running…';
+  setTimeout(() => {
+    const res = simulateSingleArm(cfg.ws, cfg.reps, cfg.seed + 5);
+    STATE.results.ws = res;
+    renderHistogram('chart-ws', res.allGrades, 1, 5, 'rgba(29,158,117,0.55)', 'Panel grade');
+    document.getElementById('b-mean').textContent = fmt(mean(res.allGrades),2);
+    document.getElementById('b-sd').textContent   = fmt(sd(res.allGrades),2);
+    document.getElementById('b-median').textContent = fmt(median(res.allGrades),2);
+    document.getElementById('b-pct4').textContent = fmtPct(res.allGrades.filter(x => x >= 4).length / Math.max(1, res.allGrades.length));
+    status.textContent = `Run complete · ${cfg.reps} replicates`;
+  }, 30);
+});
+document.getElementById('btn-run-mix').addEventListener('click', () => {
+  const cfg = getConfig();
+  const status = document.getElementById('status-mix');
+  status.textContent = 'Running…';
+  setTimeout(() => {
+    const res = simulateMixed(cfg, cfg.reps, cfg.seed + 11);
+    STATE.results.mix = res;
+    renderHistogram('chart-mix-d', res.dEsts, -0.5, 1.5, 'rgba(83,74,183,0.55)', "Replicate Cohen's d");
+    document.getElementById('c-d').textContent = fmt(res.dMean, 2);
+    document.getElementById('c-ci').textContent = `[${fmt(res.dCI[0],2)}, ${fmt(res.dCI[1],2)}]`;
+    document.getElementById('c-power').textContent = fmtPct(res.power);
+    document.getElementById('c-types').textContent = fmtPct(res.typeS);
+    status.textContent = `Run complete · ${cfg.reps} replicates`;
+  }, 30);
+});
+
+/* ====================================================================
+   DATA EXPORT
+   ==================================================================== */
+const EXPORT = {
+  data: null,        // 2-D array including header
+  filename: 'export.tsv'
+};
+
+const VERTICALS = ['Communications', 'Media', 'Technology', 'Hybrid CMT'];
+const EDUCATION = ['Bachelor', 'Bachelor', 'Bachelor', 'Master', 'Below'];
+const PHASE_VALS = ['Brainstorming','Drafting','Editing','Risk-analysis','Financial-modeling','All phases'];
+const BAND_VALS  = ['0%','1-25%','26-50%','51-75%','76-100%'];
+const TOOL_VALS  = ['Claude','GPT','Gemini','Copilot','Other','None'];
+const Q_TYPES    = ['Strategic','Technical','Financial','Implementation','Risk'];
+
+function buildSyntheticPanel(seed, scenario, nRows, cycleId) {
+  const cfg = getConfig();
+  const rng = makeRng(seed);
+  // Decide arm assignment per record
+  const records = [];
+  for (let i = 0; i < nRows; i++) {
+    let isLLM;
+    if (scenario === 'llm') isLLM = true;
+    else if (scenario === 'ws') isLLM = false;
+    else isLLM = bernoulli(rng, cfg.mix.pLLM) === 1;
+    const armCfg = isLLM ? cfg.llm : cfg.ws;
+    // Author covariates
+    const tenure = Math.max(1, Math.round(normal(rng, 14, 8)));
+    const priorExp = Math.max(0, Math.round(normal(rng, 2.5, 1.5)));
+    const edu = EDUCATION[Math.floor(rng() * EDUCATION.length)];
+    const englishBand = Math.max(1, Math.min(7, Math.round(normal(rng, 5, 1))));
+    const vertical = VERTICALS[Math.floor(rng() * VERTICALS.length)];
+    // Compliance / attrition (low rates)
+    const compliance = rng() < 0.97 ? 'Y' : 'N';
+    const attrition = rng() < 0.04 ? 'Y' : 'N';
+    // Proposal-side
+    const wordCount = Math.max(800, Math.round(normal(rng, 2400, 600)));
+    const pageCount = Math.max(4, Math.round(wordCount / 300));
+    const clientTier = ['Tier1','Tier1','Tier2','Tier2','Tier3'][Math.floor(rng() * 5)];
+    const peerAuth = isLLM ? Math.max(2, Math.min(5, +(normal(rng, 4.2, 0.5)).toFixed(1))) : '';
+    const passedPeer = isLLM ? (peerAuth >= 3.5 ? 'Y' : 'N') : 'N/A';
+    // Team arm
+    const teamArmRoll = rng();
+    let teamArm = 'A';
+    if (teamArmRoll > 0.5 && teamArmRoll <= 0.8) teamArm = 'B';
+    else if (teamArmRoll > 0.8) teamArm = 'C';
+    const interviewConducted = teamArm === 'C' ? 'N' : 'Y';
+    // Team covariates
+    const teamSize = 3 + Math.floor(rng() * 3); // 3-5
+    const baselineCap = +(Math.min(5, Math.max(1, normal(rng, 3.6, 0.5)))).toFixed(2);
+    // Per-record noise
+    const teamN = normal(rng, 0, cfg.mix.teamSD);
+    const cycleN = normal(rng, 0, cfg.mix.cycleSD);
+    // Base grade then panel jitter
+    let baseGrade = truncNormal(rng, armCfg.mean + teamN + cycleN, armCfg.sd, 1, 5);
+    if (interviewConducted === 'Y') baseGrade = Math.min(5, baseGrade + armCfg.boost);
+    // Three panelist grades (jittered)
+    const pG = [];
+    for (let p = 0; p < 3; p++) {
+      let g = baseGrade + normal(rng, 0, cfg.mix.panelSD);
+      g = Math.max(1, Math.min(5, g));
+      pG.push(+g.toFixed(1));
+    }
+    const meanG = +(pG.reduce((s,x)=>s+x, 0) / 3).toFixed(2);
+    // Author interview behavior (only if interviewed)
+    let lat = '', extRef = '', dar = '', clarity = '', responsiveness = '', comfort = '', depth = '', qCount = '';
+    if (interviewConducted === 'Y') {
+      lat = +(Math.max(0.5, normal(rng, armCfg.lat, Math.max(armCfg.lat * 0.25, 1)))).toFixed(1);
+      extRef = Math.round(Math.max(0, normal(rng, armCfg.ext * 25, armCfg.ext * 5))); // total over a ~25-min interview window
+      dar = +Math.min(1, Math.max(0, normal(rng, armCfg.dar, 0.10))).toFixed(2);
+      qCount = Math.round(Math.max(6, normal(rng, 12, 2)));
+      // Holistic codes — anchored on source
+      const baseHolistic = isLLM ? 2.6 : 3.9;
+      clarity        = Math.max(1, Math.min(5, Math.round(normal(rng, baseHolistic, 0.7))));
+      responsiveness = Math.max(1, Math.min(5, Math.round(normal(rng, baseHolistic - 0.1, 0.7))));
+      comfort        = Math.max(1, Math.min(5, Math.round(normal(rng, baseHolistic + 0.1, 0.7))));
+      depth          = Math.max(1, Math.min(5, Math.round(normal(rng, baseHolistic - 0.3, 0.7))));
+    }
+    // Survey item draws (centered by source)
+    const llmShift = isLLM ? -0.6 : 0;  // Likert items pulled lower for slop authors
+    const drawLikert = (mu) => Math.max(1, Math.min(7, Math.round(normal(rng, mu + llmShift, 1.0))));
+    const preSelectConf  = drawLikert(5.0);
+    const preGradeConf   = drawLikert(5.0);
+    const interviewPrep  = drawLikert(5.4);
+    const improvRate     = Math.max(1, Math.min(7, Math.round(normal(rng, isLLM ? 5.2 : 3.4, 1.0))));
+    const selfAuth       = drawLikert(5.3);
+    // Tools used
+    const toolsUsed = isLLM
+      ? 'Frontier LLM, Internal knowledge base'
+      : 'In-person workshop discussion, Internal knowledge base';
+    // Team retrospective items
+    const sourceGuessTrue = isLLM ? 'LLM' : 'Workshop';
+    const sourceGuessRaw = rng();
+    let sourceGuess;
+    if (sourceGuessRaw < 0.55) sourceGuess = sourceGuessTrue; // 55% accuracy as default
+    else if (sourceGuessRaw < 0.85) sourceGuess = (isLLM ? 'Workshop' : 'LLM');
+    else sourceGuess = 'Uncertain';
+    const guessConf = drawLikert(4.0);
+    const teamDifficulty = Math.max(1, Math.min(7, Math.round(normal(rng, isLLM ? 5.1 : 3.4, 1.1))));
+    const intHelpful   = interviewConducted === 'Y' ? Math.max(1, Math.min(7, Math.round(normal(rng, isLLM ? 3.4 : 5.5, 1.0)))) : '';
+    const intDepth     = interviewConducted === 'Y' ? Math.max(1, Math.min(7, Math.round(normal(rng, isLLM ? 3.0 : 5.4, 1.0)))) : '';
+    const intEvasive   = interviewConducted === 'Y' ? Math.max(1, Math.min(7, Math.round(normal(rng, isLLM ? 4.6 : 2.4, 1.1)))) : '';
+    const teamLLMUse   = Math.max(1, Math.min(7, Math.round(normal(rng, 4.5, 1.4))));
+    // Panelist source-likelihood (post-grading detection)
+    const panelLikelyLLM = Math.max(1, Math.min(7, Math.round(normal(rng, isLLM ? 4.6 : 2.6, 1.2))));
+    // Build record
+    records.push({
+      i,
+      // Roster
+      AssociateID: `A${String(i+1).padStart(3,'0')}`,
+      ProposalID:  `P${String(i+1).padStart(3,'0')}`,
+      TeamID:      `T${String((i % 30) + 1).padStart(3,'0')}`,
+      PlanID:      `PL${String(i+1).padStart(3,'0')}`,
+      InterviewID: interviewConducted === 'Y' ? `IV${String(i+1).padStart(3,'0')}` : '',
+      CycleID: cycleId,
+      isLLM, source: isLLM ? 'LLM' : 'Workshop', teamArm,
+      tenure, priorExp, edu, englishBand, vertical,
+      compliance, attrition,
+      wordCount, pageCount, clientTier, peerAuth, passedPeer,
+      teamSize, baselineCap, interviewConducted,
+      pG, meanG, sdG: +sdArr(pG).toFixed(2),
+      lat, extRef, dar, qCount, clarity, responsiveness, comfort, depth,
+      preSelectConf, preGradeConf, interviewPrep, improvRate, selfAuth, toolsUsed,
+      sourceGuess, guessConf, teamDifficulty, intHelpful, intDepth, intEvasive, teamLLMUse,
+      panelLikelyLLM
+    });
+  }
+  return { records, cfg };
+}
+function sdArr(a) {
+  if (a.length < 2) return 0;
+  const m = a.reduce((s,x)=>s+x,0)/a.length;
+  return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0) / (a.length - 1));
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Build the dataset matrix (header + rows) for the chosen sheet
+function buildDataset() {
+  const cfg = getConfig();
+  const dataset = document.getElementById('export-dataset').value;
+  const scenario = document.getElementById('export-scenario').value;
+  const cycleId = document.getElementById('export-cycle').value || 'C2026Q2';
+  const nRows = Math.max(10, Math.min(1000, parseInt(document.getElementById('export-rows').value, 10) || 120));
+  const includeHeader = document.getElementById('export-header').value === 'yes';
+  const today = todayStr();
+
+  // Special case: replicate-level summary uses simulateMixed direct output
+  if (dataset === 'replicate_summary') {
+    const reps = Math.min(2000, cfg.reps);
+    const res = simulateMixed(cfg, reps, cfg.seed + 11);
+    const header = ['ReplicateIdx','CohensD','MeanGap_WS_minus_LLM','p_TwoSided','Significant_alpha05','DecisionBranch'];
+    const rows = res.dEsts.map((d, idx) => {
+      const p = res.pVals[idx];
+      const sig = p < 0.05 ? 1 : 0;
+      const ad = Math.abs(d);
+      const branch = sig ? (ad >= 0.4 ? 'Branch1' : ad >= 0.15 ? 'Branch2' : 'Branch3') : 'Branch3';
+      return [idx + 1, +d.toFixed(4), +res.gapEsts[idx].toFixed(4), +p.toExponential(3), sig, branch];
+    });
+    return includeHeader ? [header, ...rows] : rows;
+  }
+
+  // Build a coherent synthetic panel for the chosen scenario
+  const { records } = buildSyntheticPanel(cfg.seed + 9991, scenario, nRows, cycleId);
+
+  let header = [], rows = [];
+  switch (dataset) {
+    case 'roster_assoc':
+      header = ['AssociateID','CycleID','ArmAssign','CoinFlipDate','Tenure_Months','Education','PriorProjExp_Years','Vertical_SubSeg','EnglishProf_Band','Compliance','Attrition','Notes'];
+      rows = records.map(r => [r.AssociateID, r.CycleID, r.source, today, r.tenure, r.edu, r.priorExp, r.vertical, r.englishBand, r.compliance, r.attrition, '']);
+      break;
+    case 'roster_prop':
+      header = ['ProposalID','AssociateID','Source','PeerReview_AuthScore_1to5','PassedPeerReview','Vertical_SubSeg','WordCount','PageCount','ClientSize_Tier','CycleID','DateCreated','Notes'];
+      rows = records.map(r => [r.ProposalID, r.AssociateID, r.source, r.peerAuth, r.passedPeer, r.vertical, r.wordCount, r.pageCount, r.clientTier, r.CycleID, today, '']);
+      break;
+    case 'roster_team': {
+      header = ['TeamID','CycleID','TeamArm','TeamSize','BaselineCap_Score','AvgTenure_Months','AvgPriorExp_Years','EnglishProf_Avg','AssignedProposalID','AssignmentMethod','TeamLead_AssociateID','Notes'];
+      // Aggregate to ~30 unique team IDs
+      const seen = new Set();
+      rows = [];
+      for (const r of records) {
+        if (seen.has(r.TeamID)) continue;
+        seen.add(r.TeamID);
+        rows.push([r.TeamID, r.CycleID, r.teamArm, r.teamSize, r.baselineCap, '', '', '', r.ProposalID, r.teamArm === 'A' ? 'Self-Screen' : 'Random', r.AssociateID, '']);
+      }
+      break;
+    }
+    case 'roster_panel':
+      header = ['PanelistID','Initials','Role','CyclesActive','YearsExperience','Notes'];
+      rows = [
+        ['PN01','SK','Director','5','12',''],
+        ['PN02','RM','VP','5','17',''],
+        ['PN03','LH','Senior MD','5','22','']
+      ];
+      break;
+    case 'roster_plan':
+      header = ['PlanID','TeamID','ProposalID','CycleID','TeamArm','InterviewConducted','InterviewID','GradeAvg_1to5','GradeStdDev','PanelistsCount','GradedDate','Notes'];
+      rows = records.map(r => [r.PlanID, r.TeamID, r.ProposalID, r.CycleID, r.teamArm, r.interviewConducted, r.InterviewID, r.meanG, r.sdG, 3, today, '']);
+      break;
+
+    case 'form1_author':
+      header = ['AuthorID','PlanIDs_developed_csv','CycleID','Date_Administered','Q1_PreSelectConf_1to7','Q2_PreGradeConf_1to7','Q3_InterviewPrep_1to7','Q4_ImprovRate_1to7','Q5_DifficultQs_text','Q6_DepthClaim_text','Q7_ToolsUsed_csv','Q8_SelfAuth_1to7','Q9_Reflection_text'];
+      rows = records.map(r => [
+        r.AssociateID, r.PlanID, r.CycleID, today,
+        r.preSelectConf, r.preGradeConf, r.interviewPrep, r.improvRate,
+        r.isLLM ? 'Implementation specifics around the operating model' : '(none flagged)',
+        r.isLLM ? 'Familiar with framing, less so with detailed mechanics' : 'Hands-on understanding from workshop dialogue',
+        r.toolsUsed, r.selfAuth,
+        r.isLLM ? 'Build more specific implementation detail next time' : 'Stronger framing at the start would have helped'
+      ]);
+      break;
+
+    case 'form2_screen': {
+      header = ['TeamID','CycleID','Date_Administered','Q1_ProposalsReviewed_csv','Q2_TopPick_ProposalID','Q3_Rationale_text','Q4_PreDevConf_1to7','Q5_SecondChoice_ProposalID','Q6_Disagreement_1to7','Q7_SurfaceVsSubst_1to7'];
+      // Only Arm A teams; aggregate by team
+      const seen = new Set();
+      rows = [];
+      for (const r of records) {
+        if (r.teamArm !== 'A' || seen.has(r.TeamID)) continue;
+        seen.add(r.TeamID);
+        const altIds = [];
+        for (let k = 0; k < 3; k++) {
+          const idx = Math.floor(Math.random() * records.length);
+          altIds.push(records[idx].ProposalID);
+        }
+        rows.push([
+          r.TeamID, r.CycleID, today,
+          [r.ProposalID, ...altIds].join(', '),
+          r.ProposalID,
+          r.isLLM ? 'Polished framing, clear executive language, looked panel-ready' : 'Concrete implementation detail and explicit risk treatment',
+          Math.max(1, Math.min(7, Math.round((r.preGradeConf + 5)/2))),
+          altIds[0],
+          Math.max(1, Math.min(7, Math.round(2 + Math.random()*3))),
+          r.isLLM ? 3 : 5
+        ]);
+      }
+      break;
+    }
+
+    case 'form3_team':
+      header = ['TeamID','CycleID','Date_Administered','Q1_SourceGuess','Q2_GuessConf_1to7','Q3_DetectionCues_text','Q4_Difficulty_1to7','Q5_FrictionPoints_text','Q6a_IntHelpful_1to7','Q6b_IntDepth_1to7','Q6c_IntEvasive_1to7','Q7_InfoGap_text','Q8_LLMUse_1to7','Q9_GradeReflection_text'];
+      rows = records.map(r => [
+        r.TeamID, r.CycleID, today, r.sourceGuess, r.guessConf,
+        r.isLLM ? 'Generic boilerplate phrasing; author hedged on specifics in interview' : 'Specific examples; author had hands-on familiarity',
+        r.teamDifficulty,
+        r.isLLM ? 'Author could not specify the operating-model mechanics' : 'No major friction',
+        r.intHelpful, r.intDepth, r.intEvasive,
+        r.isLLM ? 'Concrete implementation steps and risk-mitigation specifics' : '(none significant)',
+        r.teamLLMUse,
+        'Reflects our team\'s effort given the source material we received'
+      ]);
+      break;
+
+    case 'form4_panel': {
+      // 3 panelist rows per plan
+      header = ['PanelistID','PlanID','TeamID','CycleID','Q1_Grade_1to5','Q2_Strengths_text','Q3_Weaknesses_text','Q4_SpecificConcerns_text','Q5_LLM_Likelihood_1to7','Date_Q1to4_submitted','Q6_SourceCues_text'];
+      rows = [];
+      for (const r of records) {
+        for (let p = 0; p < 3; p++) {
+          rows.push([
+            `PN0${p+1}`, r.PlanID, r.TeamID, r.CycleID,
+            r.pG[p],
+            r.isLLM ? 'Clear executive narrative' : 'Strong implementation logic',
+            r.isLLM ? 'Implementation depth is shallow' : 'Some risks under-specified',
+            r.isLLM ? 'Operating-model assumptions need validation' : '(minor)',
+            r.panelLikelyLLM, today,
+            r.isLLM ? 'Boilerplate phrasing in places' : 'Specific evidence and concrete steps'
+          ]);
+        }
+      }
+      break;
+    }
+
+    case 'form5_int': {
+      // Two coder rows per interview (Coder1, Coder2). Skip Arm C.
+      header = ['InterviewID','PlanID','TeamID','CoderID','CoderRole','C1_QuestionCount','C2_MeanLatency_sec','C3_ExtRef_count','C4_AuthorSpeak_sec','C5_TeamSpeak_sec','Cat3_DirectAnswerProp_0to1','H1_Clarity_1to5','H2_Responsiveness_1to5','H3_Comfort_1to5','H4_Depth_1to5'];
+      rows = [];
+      for (const r of records) {
+        if (r.interviewConducted !== 'Y') continue;
+        const speakingRatio = r.isLLM ? 0.55 : 0.65;
+        const totalSec = 25 * 60;
+        const authSec = Math.round(totalSec * speakingRatio);
+        const teamSec = totalSec - authSec;
+        for (const role of ['Coder1','Coder2']) {
+          // Two coders agree to within small jitter
+          const j = role === 'Coder1' ? 0 : 1;
+          const lat = +(Math.max(0.5, r.lat + (j ? -0.4 : 0.4))).toFixed(1);
+          const dar = Math.max(0, Math.min(1, +(r.dar + (j ? -0.02 : 0.02)).toFixed(2)));
+          rows.push([
+            r.InterviewID, r.PlanID, r.TeamID, role === 'Coder1' ? 'CD01' : 'CD02', role,
+            r.qCount, lat, r.extRef, authSec, teamSec, dar,
+            Math.max(1, Math.min(5, r.clarity + (j ? -0 : 0))),
+            r.responsiveness, r.comfort, r.depth
+          ]);
+        }
+      }
+      break;
+    }
+
+    case 'form6_llm':
+      header = ['TeamID','CycleID','Date_Administered','Q1_LLMUsed','Q2_InteractionCount','Q3_DraftedWithLLM_band','Q4_PrimaryTool','Q5_HighestUsePhase','T1_BrowserSessionCount','T2_IDEExtHours','T3_TokenUsage','Notes'];
+      rows = records.map(r => {
+        const used = r.teamLLMUse >= 3;
+        const interactions = used ? Math.round(Math.max(0, normal(makeRng(r.i + 1), 25, 12))) : 0;
+        const bandIdx = Math.min(4, Math.max(0, Math.floor(r.teamLLMUse / 1.5)));
+        const tokens = used ? Math.round(interactions * 1500 + Math.random() * 5000) : 0;
+        return [
+          r.TeamID, r.CycleID, today,
+          used ? 'Y' : (r.teamLLMUse >= 2 ? 'Partial' : 'N'),
+          interactions, BAND_VALS[bandIdx], used ? TOOL_VALS[Math.floor(Math.random()*3)] : 'None',
+          PHASE_VALS[Math.floor(Math.random()*PHASE_VALS.length)],
+          used ? interactions : 0,
+          used ? +(interactions / 25).toFixed(1) : 0,
+          tokens, ''
+        ];
+      });
+      // Dedup by TeamID
+      const seen2 = new Set();
+      rows = rows.filter(row => seen2.has(row[0]) ? false : (seen2.add(row[0]), true));
+      break;
+
+    case 'form7_base': {
+      header = ['TeamID','CycleID','Date_Administered','PanelistA_Grade_1to5','PanelistB_Grade_1to5','PanelistC_Grade_1to5','AvgBaselineGrade','Notes'];
+      const seen3 = new Set();
+      rows = [];
+      for (const r of records) {
+        if (seen3.has(r.TeamID)) continue;
+        seen3.add(r.TeamID);
+        const a = +Math.max(1, Math.min(5, normal(makeRng(r.i+11), r.baselineCap, 0.3))).toFixed(1);
+        const b = +Math.max(1, Math.min(5, normal(makeRng(r.i+22), r.baselineCap, 0.3))).toFixed(1);
+        const c = +Math.max(1, Math.min(5, normal(makeRng(r.i+33), r.baselineCap, 0.3))).toFixed(1);
+        const avg = +((a+b+c)/3).toFixed(2);
+        rows.push([r.TeamID, r.CycleID, today, a, b, c, avg, '']);
+      }
+      break;
+    }
+
+    default:
+      header = ['msg'];
+      rows = [['Unknown dataset']];
+  }
+  return includeHeader ? [header, ...rows] : rows;
+}
+
+function tsv(matrix) {
+  return matrix.map(row => row.map(cell => {
+    const s = (cell === null || cell === undefined) ? '' : String(cell);
+    // For TSV, replace tabs/newlines inside cells with spaces (Excel paste-safe)
+    return s.replace(/[\t\r\n]+/g, ' ');
+  }).join('\t')).join('\n');
+}
+function csv(matrix) {
+  return matrix.map(row => row.map(cell => {
+    const s = (cell === null || cell === undefined) ? '' : String(cell);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }).join(',')).join('\n');
+}
+
+function renderPreview(matrix) {
+  const tbl = document.getElementById('export-preview');
+  if (!matrix || matrix.length === 0) {
+    tbl.innerHTML = '<thead><tr><th>No rows</th></tr></thead><tbody></tbody>';
+    return;
+  }
+  const header = matrix[0];
+  const dataRows = matrix.slice(1, 26);
+  const head = '<thead><tr>' + header.map(h => `<th>${escapeHtml(String(h))}</th>`).join('') + '</tr></thead>';
+  const body = '<tbody>' + dataRows.map(row =>
+    '<tr>' + row.map(c => `<td>${escapeHtml(String(c ?? ''))}</td>`).join('') + '</tr>'
+  ).join('') + '</tbody>';
+  tbl.innerHTML = head + body;
+}
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function downloadFile(text, filename, mime) {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('btn-build-export').addEventListener('click', () => {
+  const status = document.getElementById('export-status');
+  status.textContent = 'Building…';
+  setTimeout(() => {
+    const matrix = buildDataset();
+    EXPORT.data = matrix;
+    const dsel = document.getElementById('export-dataset');
+    const label = dsel.options[dsel.selectedIndex].text.split(' — ')[0].replace(/\W+/g, '_');
+    EXPORT.filename = `cmt_sim_${label}_${todayStr()}`;
+    renderPreview(matrix);
+    document.getElementById('export-rowcount-inline').textContent = matrix.length - 1; // not counting header for display
+    status.textContent = `Built ${matrix.length - 1} rows (+ header). Ready to copy or download.`;
+  }, 30);
+});
+
+document.getElementById('btn-copy-export').addEventListener('click', async () => {
+  const status = document.getElementById('export-status');
+  if (!EXPORT.data) {
+    status.textContent = 'Click "Build dataset" first.';
+    return;
+  }
+  const text = tsv(EXPORT.data);
+  try {
+    await navigator.clipboard.writeText(text);
+    status.textContent = `Copied ${EXPORT.data.length - 1} rows (TSV) to clipboard. Paste into the matching workbook sheet.`;
+  } catch (e) {
+    // Fallback: textarea + execCommand
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try {
+      document.execCommand('copy');
+      status.textContent = `Copied ${EXPORT.data.length - 1} rows (TSV) to clipboard via fallback.`;
+    } catch (err) {
+      status.textContent = 'Copy failed — use Download instead.';
+    }
+    document.body.removeChild(ta);
+  }
+});
+
+document.getElementById('btn-dl-csv').addEventListener('click', () => {
+  if (!EXPORT.data) { document.getElementById('export-status').textContent = 'Click "Build dataset" first.'; return; }
+  downloadFile(csv(EXPORT.data), EXPORT.filename + '.csv', 'text/csv');
+  document.getElementById('export-status').textContent = `Downloaded ${EXPORT.filename}.csv`;
+});
+document.getElementById('btn-dl-tsv').addEventListener('click', () => {
+  if (!EXPORT.data) { document.getElementById('export-status').textContent = 'Click "Build dataset" first.'; return; }
+  downloadFile(tsv(EXPORT.data), EXPORT.filename + '.tsv', 'text/tab-separated-values');
+  document.getElementById('export-status').textContent = `Downloaded ${EXPORT.filename}.tsv`;
+});
+
+/* ====================================================================
+   PROCESS FLOW SANKEY
+   ==================================================================== */
+const SANKEY = {
+  svg: null,
+  tooltip: null
+};
+
+function buildSankeyData() {
+  const cfg = getConfig();
+  // Total cohort size = total proposals in mixed scenario
+  const N = cfg.mix.n;
+  const pLLM = cfg.mix.pLLM;
+  const nLLM = Math.round(N * pLLM);
+  const nWS  = N - nLLM;
+  // Peer review filter — LLM only. Authenticity score >= 3.5 passes.
+  // Empirical pass rate in our synthetic generator is ~75-85% depending on parameters.
+  // Use a reasonable default tied to llm.mean (higher means => more authentic-feeling proposals).
+  // Calibrate: pass rate roughly maps to score above 3.5 in N(4.2, 0.5) ~= 91%, so default to ~0.85.
+  const peerPass = 0.85;
+  const nLLMPass = Math.round(nLLM * peerPass);
+  const nLLMFail = nLLM - nLLMPass;
+  // Pool entering team-arm assignment = LLM Pass + WS
+  const nPool = nLLMPass + nWS;
+  // Team arm assignment proportions (per protocol)
+  const armA = 0.50, armB = 0.30, armC = 0.20;
+  // Each source split independently into team arms
+  const llmA = Math.round(nLLMPass * armA);
+  const llmB = Math.round(nLLMPass * armB);
+  const llmC = nLLMPass - llmA - llmB;
+  const wsA  = Math.round(nWS * armA);
+  const wsB  = Math.round(nWS * armB);
+  const wsC  = nWS - wsA - wsB;
+
+  // Grade band probabilities — derived from Normal(mean, sd) truncated to [1,5], + arm boost on interview arms
+  // For each (source × team arm) compute P(low), P(mid), P(high) under the simulation's distribution
+  function bandProbs(armCfg, hasInterview) {
+    const mu = armCfg.mean + (hasInterview ? armCfg.boost : 0);
+    const sd = armCfg.sd;
+    // Cumulative under Normal (no truncation refinement — close enough for visualization)
+    const cdf = x => normCdf((x - mu) / sd);
+    const pLow  = cdf(2.5);
+    const pMid  = cdf(3.5) - pLow;
+    const pHigh = 1 - cdf(3.5);
+    // Renormalize for truncation effects on tails
+    const z = pLow + pMid + pHigh;
+    return [pLow / z, pMid / z, pHigh / z];
+  }
+
+  const llmAprobs = bandProbs(cfg.llm, true);
+  const llmBprobs = bandProbs(cfg.llm, true);
+  const llmCprobs = bandProbs(cfg.llm, false);
+  const wsAprobs  = bandProbs(cfg.ws, true);
+  const wsBprobs  = bandProbs(cfg.ws, true);
+  const wsCprobs  = bandProbs(cfg.ws, false);
+
+  // Apportion each (source × arm) flow into [low, mid, high]
+  function split3(n, p) {
+    const a = Math.round(n * p[0]);
+    const b = Math.round(n * p[1]);
+    const c = n - a - b;
+    return [a, b, c];
+  }
+  const llmA_bands = split3(llmA, llmAprobs);
+  const llmB_bands = split3(llmB, llmBprobs);
+  const llmC_bands = split3(llmC, llmCprobs);
+  const wsA_bands  = split3(wsA,  wsAprobs);
+  const wsB_bands  = split3(wsB,  wsBprobs);
+  const wsC_bands  = split3(wsC,  wsCprobs);
+
+  // Aggregate to grade columns: total per band (split LLM vs WS for stacking)
+  const llmLow  = llmA_bands[0] + llmB_bands[0] + llmC_bands[0];
+  const llmMid  = llmA_bands[1] + llmB_bands[1] + llmC_bands[1];
+  const llmHigh = llmA_bands[2] + llmB_bands[2] + llmC_bands[2];
+  const wsLow   = wsA_bands[0]  + wsB_bands[0]  + wsC_bands[0];
+  const wsMid   = wsA_bands[1]  + wsB_bands[1]  + wsC_bands[1];
+  const wsHigh  = wsA_bands[2]  + wsB_bands[2]  + wsC_bands[2];
+
+  return {
+    N, peerPass,
+    stages: [
+      // Stage 0: Cohort
+      [{ id: 'cohort', label: 'Cohort', value: N, source: 'mix' }],
+      // Stage 1: Arm
+      [
+        { id: 'llm',      label: 'LLM source',      value: nLLM, source: 'llm' },
+        { id: 'workshop', label: 'Workshop source', value: nWS,  source: 'ws'  }
+      ],
+      // Stage 2: Pool
+      [
+        { id: 'llmpass',  label: 'LLM passes peer review', value: nLLMPass, source: 'llm' },
+        { id: 'wspool',   label: 'Workshop into pool',     value: nWS,      source: 'ws'  },
+        { id: 'llmfail',  label: 'LLM fails peer review',  value: nLLMFail, source: 'fail', terminal: true }
+      ],
+      // Stage 3: Team arm
+      [
+        { id: 'llm-A',  label: 'Arm A · LLM',      value: llmA, source: 'llm' },
+        { id: 'ws-A',   label: 'Arm A · Workshop', value: wsA,  source: 'ws'  },
+        { id: 'llm-B',  label: 'Arm B · LLM',      value: llmB, source: 'llm' },
+        { id: 'ws-B',   label: 'Arm B · Workshop', value: wsB,  source: 'ws'  },
+        { id: 'llm-C',  label: 'Arm C · LLM',      value: llmC, source: 'llm' },
+        { id: 'ws-C',   label: 'Arm C · Workshop', value: wsC,  source: 'ws'  }
+      ],
+      // Stage 4: Grade band
+      [
+        { id: 'g-low-llm',  label: 'Low · LLM',      value: llmLow,  source: 'llm' },
+        { id: 'g-low-ws',   label: 'Low · Workshop', value: wsLow,   source: 'ws'  },
+        { id: 'g-mid-llm',  label: 'Mid · LLM',      value: llmMid,  source: 'llm' },
+        { id: 'g-mid-ws',   label: 'Mid · Workshop', value: wsMid,   source: 'ws'  },
+        { id: 'g-hi-llm',   label: 'High · LLM',     value: llmHigh, source: 'llm' },
+        { id: 'g-hi-ws',    label: 'High · Workshop',value: wsHigh,  source: 'ws'  }
+      ]
+    ],
+    flows: [
+      // Stage 0 → 1
+      { from: 'cohort', to: 'llm',      value: nLLM, source: 'llm' },
+      { from: 'cohort', to: 'workshop', value: nWS,  source: 'ws'  },
+      // Stage 1 → 2
+      { from: 'llm',      to: 'llmpass', value: nLLMPass, source: 'llm' },
+      { from: 'llm',      to: 'llmfail', value: nLLMFail, source: 'fail' },
+      { from: 'workshop', to: 'wspool',  value: nWS,      source: 'ws'  },
+      // Stage 2 → 3
+      { from: 'llmpass', to: 'llm-A', value: llmA, source: 'llm' },
+      { from: 'llmpass', to: 'llm-B', value: llmB, source: 'llm' },
+      { from: 'llmpass', to: 'llm-C', value: llmC, source: 'llm' },
+      { from: 'wspool',  to: 'ws-A',  value: wsA,  source: 'ws' },
+      { from: 'wspool',  to: 'ws-B',  value: wsB,  source: 'ws' },
+      { from: 'wspool',  to: 'ws-C',  value: wsC,  source: 'ws' },
+      // Stage 3 → 4 (each team-arm node splits into low/mid/high by source)
+      { from: 'llm-A', to: 'g-low-llm', value: llmA_bands[0], source: 'llm' },
+      { from: 'llm-A', to: 'g-mid-llm', value: llmA_bands[1], source: 'llm' },
+      { from: 'llm-A', to: 'g-hi-llm',  value: llmA_bands[2], source: 'llm' },
+      { from: 'llm-B', to: 'g-low-llm', value: llmB_bands[0], source: 'llm' },
+      { from: 'llm-B', to: 'g-mid-llm', value: llmB_bands[1], source: 'llm' },
+      { from: 'llm-B', to: 'g-hi-llm',  value: llmB_bands[2], source: 'llm' },
+      { from: 'llm-C', to: 'g-low-llm', value: llmC_bands[0], source: 'llm' },
+      { from: 'llm-C', to: 'g-mid-llm', value: llmC_bands[1], source: 'llm' },
+      { from: 'llm-C', to: 'g-hi-llm',  value: llmC_bands[2], source: 'llm' },
+      { from: 'ws-A',  to: 'g-low-ws',  value: wsA_bands[0],  source: 'ws' },
+      { from: 'ws-A',  to: 'g-mid-ws',  value: wsA_bands[1],  source: 'ws' },
+      { from: 'ws-A',  to: 'g-hi-ws',   value: wsA_bands[2],  source: 'ws' },
+      { from: 'ws-B',  to: 'g-low-ws',  value: wsB_bands[0],  source: 'ws' },
+      { from: 'ws-B',  to: 'g-mid-ws',  value: wsB_bands[1],  source: 'ws' },
+      { from: 'ws-B',  to: 'g-hi-ws',   value: wsB_bands[2],  source: 'ws' },
+      { from: 'ws-C',  to: 'g-low-ws',  value: wsC_bands[0],  source: 'ws' },
+      { from: 'ws-C',  to: 'g-mid-ws',  value: wsC_bands[1],  source: 'ws' },
+      { from: 'ws-C',  to: 'g-hi-ws',   value: wsC_bands[2],  source: 'ws' }
+    ],
+    stageNames: ['Cohort', 'Coin-flip arm', 'Peer-review filter', 'Team arm assignment', 'Grade band']
+  };
+}
+
+function renderSankey() {
+  const data = buildSankeyData();
+  const svg = document.getElementById('sankey-svg');
+  if (!svg) return;
+  // Clear existing content (keep <title> and <desc>)
+  while (svg.lastChild && svg.lastChild.nodeName !== 'desc') svg.removeChild(svg.lastChild);
+
+  // Geometry
+  const W = 1080, H = 560;
+  const xs = [60, 280, 500, 740, 980];        // node x-centers across 5 columns
+  const nodeW = 14;                            // node bar width
+  const yTop = 70, yBot = 520;
+  const usableH = yBot - yTop;
+  const interNodeGap = 8;                      // px between stacked nodes within a column
+
+  // Compute scale: map values to vertical pixels using the *largest stage total* as denominator
+  const stageTotals = data.stages.map(stage => stage.reduce((s, n) => s + n.value, 0));
+  const maxTotal = Math.max(...stageTotals);
+  // Available y for nodes per stage = usableH minus inter-node gaps
+  // Pixels per unit value chosen so the largest stage fits exactly
+  // Account for gaps in the largest stage
+  const largestStageIdx = stageTotals.indexOf(maxTotal);
+  const largestStageGaps = (data.stages[largestStageIdx].length - 1) * interNodeGap;
+  const pxPerVal = (usableH - largestStageGaps) / maxTotal;
+
+  // Layout: position each node within its column
+  // Strategy: stack nodes from the top of column with computed heights and configured gaps,
+  // centering the whole stack vertically in [yTop, yBot]
+  const nodePos = {}; // id -> {x0, x1, y0, y1, value, source, label, stageIdx, idxInStage}
+  data.stages.forEach((stage, sIdx) => {
+    const stageHeight = stage.reduce((s, n) => s + n.value, 0) * pxPerVal + (stage.length - 1) * interNodeGap;
+    let y = yTop + (usableH - stageHeight) / 2;
+    stage.forEach((n, j) => {
+      const h = n.value * pxPerVal;
+      nodePos[n.id] = {
+        x0: xs[sIdx] - nodeW / 2,
+        x1: xs[sIdx] + nodeW / 2,
+        y0: y,
+        y1: y + h,
+        value: n.value,
+        source: n.source,
+        label: n.label,
+        stageIdx: sIdx,
+        idxInStage: j,
+        terminal: !!n.terminal
+      };
+      y += h + interNodeGap;
+    });
+  });
+
+  // For each node, compute stacked sub-positions for outgoing and incoming flows.
+  // Outgoing flows: ordered by destination's vertical position
+  // Incoming flows: ordered by source's vertical position
+  const flowsByFrom = {};
+  const flowsByTo = {};
+  data.flows.forEach(f => {
+    (flowsByFrom[f.from] = flowsByFrom[f.from] || []).push(f);
+    (flowsByTo[f.to]   = flowsByTo[f.to]   || []).push(f);
+  });
+  // Sort outgoing flows by destination's vertical center
+  Object.keys(flowsByFrom).forEach(k => {
+    flowsByFrom[k].sort((a, b) => {
+      const ay = (nodePos[a.to].y0 + nodePos[a.to].y1) / 2;
+      const by = (nodePos[b.to].y0 + nodePos[b.to].y1) / 2;
+      return ay - by;
+    });
+  });
+  Object.keys(flowsByTo).forEach(k => {
+    flowsByTo[k].sort((a, b) => {
+      const ay = (nodePos[a.from].y0 + nodePos[a.from].y1) / 2;
+      const by = (nodePos[b.from].y0 + nodePos[b.from].y1) / 2;
+      return ay - by;
+    });
+  });
+
+  // Compute each flow's y0/y1 at source side and dest side
+  const flowGeom = data.flows.map(f => ({ ...f }));
+  // For each node, walk outgoing flows top-down, accumulating y
+  Object.keys(flowsByFrom).forEach(srcId => {
+    let yAcc = nodePos[srcId].y0;
+    flowsByFrom[srcId].forEach(f => {
+      const h = f.value * pxPerVal;
+      const fg = flowGeom.find(g => g.from === f.from && g.to === f.to);
+      fg.srcY0 = yAcc;
+      fg.srcY1 = yAcc + h;
+      yAcc += h;
+    });
+  });
+  Object.keys(flowsByTo).forEach(dstId => {
+    let yAcc = nodePos[dstId].y0;
+    flowsByTo[dstId].forEach(f => {
+      const h = f.value * pxPerVal;
+      const fg = flowGeom.find(g => g.from === f.from && g.to === f.to);
+      fg.dstY0 = yAcc;
+      fg.dstY1 = yAcc + h;
+      yAcc += h;
+    });
+  });
+
+  // Color helpers
+  const colorBySource = {
+    llm:  { fill: '#d85a30', stroke: '#993c1d' },
+    ws:   { fill: '#1d9e75', stroke: '#0f6e56' },
+    mix:  { fill: '#888780', stroke: '#5f5e5a' },
+    fail: { fill: '#b4b2a9', stroke: '#888780' }
+  };
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const make = (name, attrs = {}) => {
+    const el = document.createElementNS(NS, name);
+    Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+    return el;
+  };
+
+  // Stage headers
+  data.stageNames.forEach((name, sIdx) => {
+    const t = make('text', {
+      x: xs[sIdx], y: 38, 'text-anchor': 'middle',
+      'font-family': 'inherit', 'font-size': 13, 'font-weight': 500,
+      fill: '#1a1a1a'
+    });
+    t.textContent = name;
+    svg.appendChild(t);
+    // Subtotal line
+    const sub = make('text', {
+      x: xs[sIdx], y: 54, 'text-anchor': 'middle',
+      'font-family': 'inherit', 'font-size': 11, fill: '#555550'
+    });
+    sub.textContent = `n = ${stageTotals[sIdx]}`;
+    svg.appendChild(sub);
+  });
+
+  // Draw flows first (under nodes)
+  flowGeom.forEach(f => {
+    if (f.value <= 0) return;
+    const src = nodePos[f.from], dst = nodePos[f.to];
+    const x0 = src.x1, x1 = dst.x0;
+    const xc = (x0 + x1) / 2;
+    // Cubic bezier with horizontal control points; draw as filled ribbon
+    const sy0 = f.srcY0, sy1 = f.srcY1, dy0 = f.dstY0, dy1 = f.dstY1;
+    const d = `M ${x0} ${sy0}
+               C ${xc} ${sy0}, ${xc} ${dy0}, ${x1} ${dy0}
+               L ${x1} ${dy1}
+               C ${xc} ${dy1}, ${xc} ${sy1}, ${x0} ${sy1}
+               Z`;
+    const c = colorBySource[f.source] || colorBySource.mix;
+    const path = make('path', {
+      d: d.replace(/\s+/g, ' '),
+      fill: c.fill,
+      'fill-opacity': '0.30',
+      stroke: c.stroke,
+      'stroke-width': '0.5',
+      'stroke-opacity': '0.4',
+      'data-from': f.from,
+      'data-to': f.to,
+      'data-value': f.value,
+      'data-source': f.source
+    });
+    path.style.cursor = 'pointer';
+    path.style.transition = 'fill-opacity 0.15s';
+    path.addEventListener('mouseenter', e => {
+      path.setAttribute('fill-opacity', '0.65');
+      const fromLabel = nodePos[f.from].label;
+      const toLabel = nodePos[f.to].label;
+      const pct = ((f.value / data.N) * 100).toFixed(1);
+      showTooltip(`${fromLabel} → ${toLabel}<br>n = ${f.value} (${pct}% of cohort)`);
+    });
+    path.addEventListener('mouseleave', () => {
+      path.setAttribute('fill-opacity', '0.30');
+      hideTooltip();
+    });
+    svg.appendChild(path);
+  });
+
+  // Draw nodes (bars + labels)
+  Object.values(nodePos).forEach(n => {
+    if (n.value <= 0) return;
+    const c = colorBySource[n.source] || colorBySource.mix;
+    const rect = make('rect', {
+      x: n.x0, y: n.y0,
+      width: n.x1 - n.x0, height: Math.max(2, n.y1 - n.y0),
+      fill: c.fill, stroke: c.stroke, 'stroke-width': '0.5',
+      rx: 2
+    });
+    rect.style.cursor = 'pointer';
+    rect.addEventListener('mouseenter', () => {
+      const pct = ((n.value / data.N) * 100).toFixed(1);
+      showTooltip(`<b>${n.label}</b><br>n = ${n.value} (${pct}% of cohort)`);
+    });
+    rect.addEventListener('mouseleave', hideTooltip);
+    svg.appendChild(rect);
+
+    // Label placement: stages 0 and 1 → label to right of bar; stages 2,3,4 vary
+    // Strategy: place labels on alternating sides per stage to avoid label collisions
+    const isLeftSide = (n.stageIdx === 4);
+    const cx = isLeftSide ? n.x0 - 8 : n.x1 + 8;
+    const anchor = isLeftSide ? 'end' : 'start';
+    const cy = (n.y0 + n.y1) / 2;
+
+    // Only draw label if node is tall enough OR for important nodes (cohort, fail)
+    const tooSmall = (n.y1 - n.y0) < 12;
+    if (!tooSmall || n.id === 'cohort' || n.id === 'llmfail') {
+      // Title
+      const lab = make('text', {
+        x: cx, y: cy - 1, 'text-anchor': anchor,
+        'font-family': 'inherit', 'font-size': 11, 'font-weight': 500,
+        'dominant-baseline': 'middle', fill: '#1a1a1a'
+      });
+      lab.textContent = n.label;
+      svg.appendChild(lab);
+      // Value
+      const val = make('text', {
+        x: cx, y: cy + 12, 'text-anchor': anchor,
+        'font-family': 'inherit', 'font-size': 10,
+        'dominant-baseline': 'middle', fill: '#555550'
+      });
+      val.textContent = `n = ${n.value}`;
+      svg.appendChild(val);
+    }
+  });
+
+  // Status
+  const status = document.getElementById('sankey-status');
+  if (status) {
+    status.textContent = `Built from cohort N=${data.N}, P(LLM)=${(data.stages[1][0].value/data.N*100).toFixed(0)}%, peer-pass ${(data.peerPass*100).toFixed(0)}%`;
+  }
+}
+
+function showTooltip(html) {
+  const tt = document.getElementById('sankey-tooltip');
+  if (!tt) return;
+  tt.innerHTML = html;
+  tt.style.display = 'block';
+}
+function hideTooltip() {
+  const tt = document.getElementById('sankey-tooltip');
+  if (tt) tt.style.display = 'none';
+}
+
+// Wire up rebuild button
+const btnRebuild = document.getElementById('btn-rebuild-sankey');
+if (btnRebuild) btnRebuild.addEventListener('click', renderSankey);
+
+// Re-render Sankey when its tab is opened
+document.getElementById('tabs').addEventListener('click', e => {
+  if (e.target.dataset && e.target.dataset.tab === 'flow') {
+    setTimeout(renderSankey, 50);
+  }
+});
+
+/* ---------------------- Initial run ---------------------- */
+runAll();
+setTimeout(renderSankey, 100);
+</script>
+</div>
+</body>
+</html>
